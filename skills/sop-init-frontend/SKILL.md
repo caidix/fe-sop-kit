@@ -127,11 +127,11 @@ AI 在对应阶段的行为：
 
 ---
 
-## 阶段 3：落地到 WorkBuddy 记忆
+## 阶段 3：落地到本地 AI 记忆（双工具通用）
 
-- 项目核心约定摘要 → `{workspace}/.workbuddy/memory/MEMORY.md`
-- 当日 `YYYY-MM-DD.md` 记录初始化事件
-- 若用户确认了"先澄清再开发"等铁律 → 创建项目级 WorkBuddy skill（`<project>-dev-guardrails`）编码为自动行为
+- 项目核心约定摘要 → WorkBuddy：`{workspace}/.workbuddy/memory/MEMORY.md`；CodeBuddy：`{workspace}/.codebuddy/memery/MEMORY.md`（注意：CodeBuddy 该目录名为 `memery`，非 `memory`）
+- 当日日志：`YYYY-MM-DD.md`，上述两目录各写一份
+- 若用户确认了"先澄清再开发"等铁律 → 创建项目级 skill 编码为自动行为：WorkBuddy `{workspace}/.workbuddy/skills/`、CodeBuddy `{workspace}/.codebuddy/skills/`
 
 ---
 
@@ -142,8 +142,8 @@ AI 在对应阶段的行为：
 > "这个解法可能会在类似场景再遇到——要我记下来吗？"
 > 选项：
 > - **记成规则** → 追加到 `ai-context/rules/<相关规则>.md` 的「已知陷阱」节
-> - **做成 Skill** → 创建 WorkBuddy 项目级或用户级 skill
-> - **仅日志** → 写入当天的 `.workbuddy/memory/YYYY-MM-DD.md`
+> - **做成 Skill** → 创建对应工具的 skill 目录：WorkBuddy `.workbuddy/skills/`（用户级 `~/.workbuddy/skills/`），CodeBuddy `.codebuddy/skills/`（用户级 `~/.codebuddy/skills/`）
+> - **仅日志** → 写入当天的本地记忆日志（WorkBuddy `.workbuddy/memory/`、CodeBuddy `.codebuddy/memery/`，文件名为 `YYYY-MM-DD.md`）
 > - **不存**
 
 触发盲点留存的条件（满足任一即触发）：
