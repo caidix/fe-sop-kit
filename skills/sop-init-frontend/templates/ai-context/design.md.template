@@ -1,0 +1,37 @@
+# design.md — {{PROJECT_NAME}} 架构设计
+
+## 技术栈
+<!-- AI-INSERT: 从扫描结果填充，每项一行 -->
+{{TECH_STACK}}
+
+## 架构总览
+<!-- AI-INSERT: 简要描述分层架构、数据流方向 -->
+{{ARCH_OVERVIEW}}
+
+---
+
+<!-- AI-INSERT: 以下为章节区，根据扫描到的特殊机制决定是否生成对应章节。
+  若项目无该机制 → 删除该章节。
+  若有但扫描时可能漏了 → 在阶段 1 询问用户确认。 -->
+
+## {{SPECIAL_MECHANISM_1_TITLE}}
+<!-- AI-INSERT: 如"编译期路由插件注入""getAppInfo 全局单例""微前端通信""全局组件注入"等 -->
+{{SPECIAL_MECHANISM_1_BODY}}
+
+## {{SPECIAL_MECHANISM_2_TITLE}}
+<!-- AI-INSERT: 第二个特殊机制（若无则删） -->
+{{SPECIAL_MECHANISM_2_BODY}}
+
+---
+
+## 状态管理
+<!-- AI-INSERT: store/state 结构、切片划分、存取方式 -->
+{{STATE_MANAGEMENT}}
+
+## 路由与分包
+<!-- AI-INSERT: 同 project-map.md 的路由机制，此处侧重于运行时行为 -->
+{{ROUTING_RUNTIME}}
+
+## 配置分层
+<!-- AI-INSERT: 环境变量、多环境配置文件的层次关系 -->
+{{CONFIG_LAYERS}}

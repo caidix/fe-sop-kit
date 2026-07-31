@@ -1,0 +1,23 @@
+# rules/platform.md — 多端/多环境部署与验证
+
+## 部署矩阵
+<!-- AI-INSERT: 每行一个平台/环境组合，含构建命令 -->
+| 产物 | 构建命令 | 运行场景 | 验证优先级 |
+|------|----------|----------|------------|
+{{PLATFORM_MATRIX}}
+
+## 平台特定文件
+<!-- AI-INSERT: 如有 .weapp.tsx / .web.tsx 等后缀约定 -->
+{{PLATFORM_SPECIFIC_FILES}}
+
+## 环境变量
+<!-- AI-INSERT: 关键环境变量及其作用 -->
+{{ENV_VARIABLES}}
+
+## 验证流程
+<!-- AI-INSERT: 按优先级排列每个平台/环境必须经过的验证步骤 -->
+{{VERIFICATION_FLOW}}
+
+## 多平台开发注意事项
+<!-- AI-INSERT: 跨平台差异、常见兼容性问题 -->
+{{PLATFORM_NOTES}}

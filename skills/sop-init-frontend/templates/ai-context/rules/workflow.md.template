@@ -1,0 +1,64 @@
+# rules/workflow.md — 开发流程纪律
+
+## 铁律 1：记忆隔离 + 实践入库
+- 每位开发者的 AI 本地记忆（`WorkBuddy: .workbuddy/memory/`；`CodeBuddy: .codebuddy/`）**互不干扰、不进 git**（`.gitignore` 已忽略）。
+- 验证过的好实践 → 写成 `demo/` 示例，**随仓库提交**，供团队复用。
+
+## 铁律 2：平台现实
+- {{PLATFORM_RULE}}
+
+## 铁律 3：代码风格
+- 新代码沿用 {{STYLE_RULE}}（见 `frontend.md`）。
+
+## 铁律 4：先澄清再开发（硬门槛）
+接到任何开发任务，**动手前必须向用户确认**：
+1. **新增还是修改？**
+2. **是什么功能？** （一句话说清业务目标）
+3. （若新增）**归属哪个业务域？**
+
+确认后按下表决定落点：
+
+### 落点决策树
+<!-- AI-INSERT: 根据项目实际情况（有无主包/分包/_inject等概念）定制此表 -->
+{{LANDING_DECISION_TREE}}
+
+## 大型 / 高风险任务 → 走 specs
+满足任一即开 `specs/` 四件套（`proposal` / `design` / `tasks` / `acceptance`）：
+<!-- AI-INSERT: 项目特定的大/高风险判据 -->
+{{HIGH_RISK_CRITERIA}}
+
+## 任务闭环：从实现到交付
+
+### 阶段 A：实现
+1. 按 `frontend.md` 风格写代码
+2. 每完成一个 task，自测通过后再勾选（见 `testing.md`）
+
+### 阶段 B：Review（提交前必检）
+1. 对照 `rules/review.md` 五轴清单逐项自查
+2. 走 specs 的任务 → 补填 `acceptance.md` 验证记录
+3. 不走 specs 的普通任务 → PR 描述中贴出验证命令与结果
+
+### 阶段 C：提交
+- **Commit 格式**：`type(scope): description`（遵循 [Conventional Commits](https://www.conventionalcommits.org/)）
+  - type：`feat` / `fix` / `refactor` / `style` / `chore`
+  - scope：模块名或文件（如 `flight`、`order`、`home`）
+  - description：中文描述，动词开头
+- **PR 描述**至少包含：做了什么、验证方式、受影响平台/模块。
+- 走 specs 的任务 → PR 必须链接 spec 目录路径。
+
+### 阶段 D：交付后复盘
+任务合入主干后，AI **应主动问一次**：
+> "合入了——过程中有没有值得记录的坑？要不要记到 `rules/` 或做成 skill？"（详见 `sop-init-frontend` skill 的「盲点留存」机制）
+
+有发现的坑 → 追加到对应 `rules/xxx.md` 的「已知陷阱」节。
+可复用好写法 → 写一个 `demo/` 示例。
+
+---
+
+## 任务闭环速查
+| 阶段 | 动作 | 产出 |
+|------|------|------|
+| A 实现 | 写代码 | 可运行的功能 |
+| B Review | 五轴检查 + 填验证记录 | `review.md` 全部打勾 / spec 的 `acceptance` 填完 |
+| C 提交 | conventional commit + PR 证据 | 干净的 git history |
+| D 复盘 | 问一句"有坑吗" | 更新 `rules/` / `demo/` 或 skill |

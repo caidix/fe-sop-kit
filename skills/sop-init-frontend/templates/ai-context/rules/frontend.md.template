@@ -1,0 +1,52 @@
+# rules/frontend.md — 代码风格
+
+> 风格来源：{{STYLE_SOURCE}}（{{STYLE_SOURCE_DETAIL}}）
+> 新代码须与此风格一致。
+
+## 组件规范
+<!-- AI-INSERT: 从真实代码中提取：
+  - 导出方式（default export / named export）
+  - 组件声明方式（function / arrow function / class）
+  - Props 类型定义方式（interface / type / inline）
+-->
+{{COMPONENT_CONVENTIONS}}
+
+## TypeScript 规范
+<!-- AI-INSERT: 是否必须 TS、interface vs type 偏好、是否允许 any -->
+{{TS_CONVENTIONS}}
+
+## 样式规范
+<!-- AI-INSERT: 方案（CSS Modules / Tailwind / styled-components 等）、类名规范（camelCase / kebab-case）、CSS 预处理器 -->
+{{STYLE_CONVENTIONS}}
+
+## 状态管理规范
+<!-- AI-INSERT: useSelector 类型化写法、dispatch 方式、slice 组织 -->
+{{STATE_CONVENTIONS}}
+
+## Import 顺序
+<!-- AI-INSERT: 从代码中观察到的 import 顺序（通常：第三方 → 内部包 → 相对路径 → 样式） -->
+{{IMPORT_ORDER}}
+
+## 命名规范
+| 类型 | 规范 | 示例 |
+|------|------|------|
+| 文件名 | {{FILE_NAMING}} | `{{FILE_EXAMPLE}}` |
+| 组件名 | {{COMPONENT_NAMING}} | `{{COMPONENT_EXAMPLE}}` |
+| 事件处理函数 | {{HANDLER_NAMING}} | `{{HANDLER_EXAMPLE}}` |
+| 常量 | {{CONST_NAMING}} | `{{CONST_EXAMPLE}}` |
+
+## Hooks 使用规范
+<!-- AI-INSERT: 常见 hooks 模式 -->
+{{HOOKS_PATTERNS}}
+
+## 依赖优先级
+<!-- AI-INSERT: 优先用哪些包、禁止用哪些包 -->
+{{DEP_PRIORITY}}
+
+## 多端 / 多环境守卫
+<!-- AI-INSERT: 平台/环境判断的标准写法（如 checkEnableMatches、Taro.getEnv） -->
+{{PLATFORM_GUARDS}}
+
+## 已知陷阱
+<!-- 在开发中遇到的坑记录在此，避免重犯。每次解决新坑后追加。 -->
+{{KNOWN_TRAPS}}

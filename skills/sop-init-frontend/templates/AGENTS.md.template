@@ -1,0 +1,33 @@
+# AGENTS.md — {{PROJECT_NAME}} 前端 AI 协作入口
+
+> 本文件是 CodeBuddy / WorkBuddy 等 AI 工具进入本项目时的**统一入口**。
+> 它不替代 `ai-context/` 下的详细文档，而是路由与纪律声明。
+
+## 项目一句话
+{{PROJECT_ONELINER}}
+
+## 核心认知（入手前必读）
+<!-- AI-INSERT: 如项目有特殊架构（路由注入、全局单例、微前端等），在此逐条列出，每条一两句话。 -->
+{{CORE_KNOWLEDGE}}
+
+## AI 协作铁律（来自项目约定）
+<!-- AI-INSERT: 从阶段 1 用户回答中提取 3-5 条核心规则 -->
+{{AI_RULES}}
+
+## 进入项目后请依次读取
+- `ai-context/project-map.md` —— 目录与页面注册方式
+- `ai-context/prd.md` —— 产品定位与模块清单
+- `ai-context/design.md` —— 架构与特有机制
+- `ai-context/rules/frontend.md` —— 代码风格（**必读**）
+- `ai-context/rules/platform.md` —— 多端部署与验证矩阵
+- `ai-context/rules/workflow.md` —— 开发流程纪律
+- `ai-context/rules/testing.md` —— 验证基线
+
+## 大型 / 高风险任务
+- 走 `specs/` 四件套：`proposal` / `design` / `tasks` / `acceptance`（模板见 `specs/TEMPLATE.md`）。
+- 实现后必须把验证命令与结果写进 `acceptance.md`（或 PR 描述），否则不能算完成。
+
+## 本地记忆（不入库）
+- WorkBuddy：`.workbuddy/memory/`（已被 `.gitignore` 忽略）
+- CodeBuddy：`.codebuddy/`（本地记忆部分已被 `.gitignore` 忽略）
+- **好实践请写入 `demo/`，随仓库提交**，不要只留在本地记忆。

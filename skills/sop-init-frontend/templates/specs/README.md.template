@@ -1,0 +1,17 @@
+# specs 归档
+
+## 何时建 spec
+<!-- AI-INSERT: 从 workflow.md 的大/高风险判据复制 -->
+{{SPEC_TRIGGER}}
+
+## 命名规则
+`specs/<YYYYMMDD>-<slug>/`
+
+## 四件套（从 TEMPLATE.md 复制）
+1. `proposal.md` — 范围与不在范围
+2. `design.md` — 技术方案
+3. `tasks.md` — 拆分可验证任务
+4. `acceptance.md` — 验证记录与证据
+
+## 存档
+在 `tasks.md` 全部勾选且 `acceptance.md` 完整后，spec 可归档。不删除，供后续追溯。

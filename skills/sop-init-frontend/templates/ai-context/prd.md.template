@@ -1,0 +1,20 @@
+# prd.md — {{PROJECT_NAME}} 产品定位
+
+## 产品
+- **名称**：{{PRODUCT_NAME}}
+- **定位**：{{PRODUCT_POSITIONING}}
+
+## 目标用户
+<!-- AI-INSERT: 用户群体描述 -->
+{{TARGET_USERS}}
+
+## 核心模块
+<!-- AI-INSERT: 业务模块一览，每个一行 -->
+{{MODULES}}
+
+## 技术边界
+- 主平台：{{PRIMARY_PLATFORM}}
+- 框架：{{FRAMEWORK}}
+- 编译目标：{{BUILD_TARGETS}}
+<!-- AI-INSERT: 其他技术约束 -->
+{{TECH_CONSTRAINTS}}

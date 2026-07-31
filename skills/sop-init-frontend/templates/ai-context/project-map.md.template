@@ -1,0 +1,29 @@
+# project-map.md — {{PROJECT_NAME}} 目录地图
+
+> 供 AI 快速建立项目空间认知。先读这张图再动手。
+
+## 仓库位置
+- {{REPO_LOCATION}}
+- {{MONOREPO_NOTE}}
+
+## 关键目录
+| 路径 | 作用 |
+|------|------|
+<!-- AI-INSERT: 列出项目核心目录，每行一个。必须包含：页面目录、组件目录、路由配置点、状态管理、API 层、配置文件。 -->
+{{DIR_TABLE}}
+
+## 路由机制（核心理解）
+<!-- AI-INSERT: 精确描述路由注册方式。三种常见模式：
+  1. 手写路由（React Router / Vue Router）→ "所有路由在 src/router/index.ts 的 routes 数组中定义"
+  2. File-based（Next.js / Nuxt）→ "pages/ 或 app/ 目录下的文件自动成为路由"
+  3. 编译期注入（Taro 插件 / 自研）→ 详细说明模板位置、注入逻辑、生成产物
+  此处必须准确，猜错会导致后续任务在错误文件上操作。 -->
+{{ROUTING_MECHANISM}}
+
+## 构建 / 开发命令速查
+<!-- AI-INSERT: 从 package.json scripts 提取主要命令 -->
+{{BUILD_COMMANDS}}
+
+## 常用约定速记
+<!-- AI-INSERT: 路径别名、组件命名、样式规范、状态管理用法等快速索引 -->
+{{QUICK_CONVENTIONS}}
