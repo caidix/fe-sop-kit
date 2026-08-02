@@ -1,4 +1,4 @@
-<!-- SOP-VERSION: 3.3 -->
+<!-- SOP-VERSION: 3.4 -->
 # AGENTS.md — {{PROJECT_NAME}} 前端 AI 协作入口
 
 > 本文件是 CodeBuddy / WorkBuddy 等 AI 工具进入本项目时的**统一入口**。
@@ -71,3 +71,8 @@
 - WorkBuddy：`.workbuddy/memory/`（已被 `.gitignore` 忽略）
 - CodeBuddy：`.codebuddy/`（本地记忆部分已被 `.gitignore` 忽略）
 - **好实践请写入 `demo/`，随仓库提交**，不要只留在本地记忆。
+
+## SOP 健康检查（CI / 提交前可选）
+- `node scripts/sop-check.mjs` — 检查 AGENTS.md/版本标记/必要 rules/未填占位符（FAIL）+ 版本漂移/TODO 残留/超长文件/重复段落/NFR 缺失（WARN）
+- `node scripts/sop-check.mjs --strict` — 警告也计为失败，适合接入 CI 作为硬门禁
+- AI 在自测阶段可主动运行此脚本并把结果贴进 PR

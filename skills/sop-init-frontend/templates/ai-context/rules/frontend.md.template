@@ -47,6 +47,44 @@
 <!-- AI-INSERT: 平台/环境判断的标准写法（如 checkEnableMatches、Taro.getEnv） -->
 {{PLATFORM_GUARDS}}
 
+## 非功能需求（NFR）★
+
+> 项目级的质量属性约束，作为**可恢复、可校验**的上下文（移植自 harness-engineering：把组织 NFR 沉淀为 agent 可读的约束）。
+> Review 阶段必须对照本节逐项确认；`scripts/sop-check.mjs` 会校验本节存在。
+> 未明确的项填「未设预算」即可，不要留空或 TBD。
+
+### 性能预算
+<!-- AI-INSERT: 从 package.json/scripts、构建配置或用户口述提取。示例：
+  - 首屏 JS gzip < 150KB
+  - Lighthouse Performance ≥ 90
+  - 主包体积上限 / 分包策略
+-->
+{{PERF_BUDGET}}
+
+### 安全基线
+<!-- AI-INSERT: 项目安全约定。示例：
+  - 用户输入一律转义（防 XSS）
+  - token 不入 URL / localStorage 明文
+  - 危险 HTML 渲染走统一 sanitize 工具
+-->
+{{SECURITY_BASELINE}}
+
+### 可访问性
+<!-- AI-INSERT: a11y 约定。示例：
+  - 交互元素必有 aria-label / role
+  - 颜色对比度 ≥ 4.5:1
+  - 键盘可达全部交互
+-->
+{{ACCESSIBILITY_RULES}}
+
+### 浏览器 / 端兼容
+<!-- AI-INSERT: 兼容矩阵。示例：Chrome ≥ 90 / Safari iOS ≥ 15 / 不支持 IE -->
+{{COMPAT_MATRIX}}
+
+### 国际化
+<!-- AI-INSERT: i18n 约定。示例：文案走 i18n key、禁止硬编码中文、日期/货币本地化 -->
+{{I18N_RULES}}
+
 ## 已知陷阱
 <!-- 在开发中遇到的坑记录在此，避免重犯。每次解决新坑后追加。 -->
 {{KNOWN_TRAPS}}

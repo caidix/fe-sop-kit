@@ -1,8 +1,8 @@
-<!-- SOP-VERSION: 3.3 -->
+<!-- SOP-VERSION: 3.4 -->
 
 # sop-frontend-kit — 前端项目 AI 协作脚手架（可插拔）
 
-> **SOP 版本：v3.3**
+> **SOP 版本：v3.4**
 
 一套**可复用的前端 AI 协作规范模板包**。放到任意前端项目中调用一次，AI 自动扫描项目结构并生成 `AGENTS.md` + `ai-context/` + `rules/` + `specs/` + `demo/`。支持 CodeBuddy / WorkBuddy 双工具。
 
@@ -95,6 +95,32 @@ cp -r skills/ui-skill-router ~/.workbuddy/skills/
 
 ---
 
+## SOP 健康检查 / CI 硬门禁 ★
+
+初始化后的项目自带 `scripts/sop-check.mjs`（零依赖 Node 脚本），把软纪律变成可执行、CI 可阻断的硬约束（移植自 harness-engineering「验证优于说教」）：
+
+```bash
+node scripts/sop-check.mjs            # 检查（WARN 不阻断）
+node scripts/sop-check.mjs --strict   # CI 用：警告也计为失败
+node scripts/sop-check.mjs --json     # 机器可读输出
+```
+
+| 级别 | 检查项 |
+|------|--------|
+| **FAIL** | AGENTS.md / SOP-VERSION 标记缺失、必要 rules 缺失、仍有未填占位符 `{{...}}` |
+| **WARN** | 版本漂移、TODO/TBD/待定残留、rules 文件 > 400 行、跨文件重复段落、frontend.md 缺 NFR 节 |
+
+接入 CI（示例）：
+
+```yaml
+# .github/workflows/sop-check.yml
+- run: node scripts/sop-check.mjs --strict
+```
+
+> kit 仓库自身也有自检：`node scripts/kit-self-check.mjs`（校验版本一致 / 模板齐全 / 占位符命名 / 废弃 skill 无残留），供 kit 维护者用。
+
+---
+
 ## 生成的文件一览
 
 ```
@@ -105,20 +131,22 @@ cp -r skills/ui-skill-router ~/.workbuddy/skills/
 │   ├── prd.md                         # 产品定位 + 模块清单
 │   ├── design.md                      # 架构设计 + 特有机制详解
 │   └── rules/
-│       ├── frontend.md                # 代码风格（必读）
+│       ├── frontend.md                # 代码风格（必读）+ 非功能需求(NFR)节 ★
 │       ├── react.md                   # React 项目宪法 ★（第 0 节：代码风格；后续：Hooks/ErrorBoundary/Suspense 等）
 │       ├── vue.md                     # Vue 专属约束 ★（仅 Vue 项目）
 │       ├── platform.md                # 多端/多环境矩阵
 │       ├── workflow.md                # 开发流程纪律 + 任务分类 + 任务闭环
 │       ├── planning.md                # 复杂任务规划模式 ★（L3 四阶段：理解→设计→拆解→自审）
 │       ├── testing.md                 # 验证基线 + TDD 工作流
-│       ├── review.md                  # 五轴 Review 清单
+│       ├── review.md                  # 五轴 Review 清单 + 可执行检查 ★
 │       └── skill-routing.md           # Skill 调度规则（AI PM）★
 ├── specs/
 │   ├── README.md                      # spec 归档说明 + 大/高风险触发判据
 │   └── TEMPLATE.md                    # 大需求四件套模板（含交付审计）
-└── demo/
-    └── README.md                      # 好实践示例（参考，不入库构建）
+├── demo/
+│   └── README.md                      # 好实践示例（参考，不入库构建）
+└── scripts/
+    └── sop-check.mjs                  # SOP 健康检查 / CI 硬门禁 ★
 ```
 
 > `react.md` / `vue.md` 根据扫描到的框架**二选一**生成；`specs/`、`demo/` 默认生成空壳 + 说明，随项目发展填充。
@@ -195,6 +223,10 @@ flowchart TB
 
 ## 特色机制
 
+- **硬门禁脚本（验证优于说教）** ★：`scripts/sop-check.mjs` 把"AGENTS.md 存在 / 占位符已填 / 版本一致"等软纪律变成 CI 可阻断的硬约束；`--strict` 模式警告也计失败。移植自 harness-engineering。
+- **熵检测（entropy GC 窄版本）** ★：sop-check 自动检测 rules 超长（>400 行）、跨文件重复段落、TODO/TBD 残留，防止 AI 生成的规则随时间臃肿。移植自 harness-engineering 的 entropy garbage collection。
+- **非功能需求（NFR）承载** ★：`frontend.md` 新增「非功能需求」节——性能预算 / 安全基线 / 可访问性 / 浏览器兼容 / 国际化，作为可恢复、可校验的项目级约束。移植自 harness-engineering。
+- **累积一致性** ★：复盘时踩过的坑不只写散文，而是沉淀为 `review.md` 可勾选检查项或 `sop-check` 检测规则，让一次踩坑变成后续所有任务的自动约束。移植自 harness-engineering。
 - **复杂度分级（L0-L3）** ★：每次任务自动判定复杂度——L0 极简直接执行（0 token 规则开销）、L1 简单仅加载前端风格、L2 常规走完整 SOP、L3 复杂进入深度规划模式。简单任务不为不需要的约束买单。
 - **复杂任务规划模式** ★：L3 任务触发四阶段规划（理解需求 → 方案设计 → 任务拆解 → 自审），方案确认前**不写任何代码**。融合 ECC `planner.md` 的结构化方案 + Superpowers 的苏格拉底式提问 + bite-sized 任务粒度（2-5 分钟/task）。
 - **全生命周期闭环**：复杂度预检 → 澄清 → 任务分类 + Skill 调度 → **规划（L3）** → UI 设计 → spec → 实现 → 自测 → Review → 提交 → 复盘，十一个阶段。
@@ -224,7 +256,8 @@ flowchart TB
 <details>
 <summary>版本历史（CHANGELOG）</summary>
 
-- **v3.3（当前）**：新增「复杂度分级 L0-L3」——简单任务轻装上阵、复杂任务深度武装；新增 L3 复杂任务规划模式 `planning.md`（融合 ECC `planner.md` 结构化方案 + Superpowers `brainstorming` 苏格拉底提问 + `writing-plans` bite-sized 任务粒度）；引入 TDD 引导、验证前置、Spec 自审清单、Hard Gate 机制。
+- **v3.4（当前）**：移植 harness-engineering 优点——新增 `scripts/sop-check.mjs` 硬门禁脚本（验证优于说教：占位符/版本/规则完整性 CI 可阻断）+ 熵检测（超长/重复/TODO）；新增 `scripts/kit-self-check.mjs`（kit 侧 evals）；`frontend.md` 新增「非功能需求 NFR」节（性能/安全/可访问/兼容/i18n 作为可恢复约束）；`review.md` 五轴增加可执行检查命令；复盘阶段增加「累积一致性」（坑沉淀为可勾选检查项/sop-check 规则）。
+- **v3.3**：新增「复杂度分级 L0-L3」——简单任务轻装上阵、复杂任务深度武装；新增 L3 复杂任务规划模式 `planning.md`（融合 ECC `planner.md` 结构化方案 + Superpowers `brainstorming` 苏格拉底提问 + `writing-plans` bite-sized 任务粒度）；引入 TDD 引导、验证前置、Spec 自审清单、Hard Gate 机制。
 - **v3.2**：接入 Vue 官方 `vuejs-ai/skills`（8 个专用 Skill）；`install.sh` 改为互动式（按 React/Vue 选择，仅给出安装指令不自动执行，避免替用户装无用 Skill）；废弃自有 `vue-best-practices`。
 - **v3.0 / v3.1**：接入 Vercel 官方 `react-best-practices` / `composition-patterns` / `web-design-guidelines` 替代自有 React 约束；新增项目代码风格就地扫描（react.md/vue.md 第 0 节，以项目真实写法为准）；用户口述约束注入；样本不足时主动询问降级。
 - **v1 / v2**：基础九阶段 SOP 生命周期；AI PM 决策层 `skill-routing.md`；UI Skill 路由（interface-design / ui-ux-pro-max / impeccable / taste-skill）。

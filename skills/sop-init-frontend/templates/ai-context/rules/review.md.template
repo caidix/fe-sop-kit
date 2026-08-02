@@ -35,6 +35,22 @@
 - [ ] 图片是否做了懒加载 / 尺寸优化？
 - [ ] 是否有未清理的定时器 / 事件监听（useEffect 缺少 cleanup）？
 
+## 可执行检查（验证优于说教）★
+
+> 移植自 harness-engineering：与其口头说"不要这样写"，不如放一个会报错的检测命令。
+> 提交前至少跑一遍本节命令；任一非零退出即不可提交。命令按项目实际工具调整。
+
+| 轴 | 命令（示例，按项目实际调整） |
+|----|----------------------------|
+| 类型/正确性 | `npx tsc --noEmit` |
+| 构建 | `{{BUILD_COMMAND}}`（见 project-map.md，如 `npm run build`） |
+| 风格/死代码 | `grep -rn "console\.\(log\|debug\)" src/` 应无输出；`npx eslint src/ --max-warnings 0` |
+| 安全 | `grep -rnE "dangerouslySetInnerHTML|eval\(" src/` 应无意外命中 |
+| 性能 | 跑一次构建，检查产物体积是否超出 `frontend.md` 性能预算 |
+| SOP 健康度 | `node scripts/sop-check.mjs --strict`（占位符已填 / 版本一致 / 无 TODO 残留） |
+
+> `sop-check.mjs --strict` 在 CI 中作为硬门禁：未填占位符 / 缺必要 rules / 版本漂移均会阻断。
+
 ## 前端专项检查
 
 ### 多端/响应式

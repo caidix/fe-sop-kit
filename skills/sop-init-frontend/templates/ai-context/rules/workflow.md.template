@@ -82,6 +82,7 @@ UI 密集任务在进入实现前，必须走 UI 设计阶段：
 2. 按框架规则（`react.md` 或 `vue.md`）写框架特定代码
 3. 框架 Skill（Vercel 官方 react-best-practices / Vue 官方 vue-best-practices，如已安装）实时约束
 4. 每完成一个 task，自测通过后再勾选（见 `testing.md`）
+5. 实现完成后跑 `node scripts/sop-check.mjs` 做 SOP 健康检查（占位符/版本/规则完整性）
 
 ### 阶段 B：Review（提交前必检）
 1. 对照 `rules/review.md` 五轴清单逐项自查
@@ -103,6 +104,11 @@ UI 密集任务在进入实现前，必须走 UI 设计阶段：
 
 有发现的坑 → 追加到对应 `rules/xxx.md` 的「已知陷阱」节。
 可复用好写法 → 写一个 `demo/` 示例。
+
+**累积一致性 ★**（移植自 harness-engineering）：坑不能只写成散文，要**沉淀为可执行检查**——
+- 能用命令检测的 → 追加一条 checkbox 到 `review.md` 对应轴的「可执行检查」，或加进 `scripts/sop-check.mjs` 的检测规则；
+- 不能自动化的 → 至少写成 `review.md` 里可勾选的 checkbox。
+这样一次踩坑会让后续所有任务自动受约束，组织判断随时间复利。
 
 ---
 

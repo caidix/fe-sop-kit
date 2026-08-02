@@ -3,7 +3,7 @@ name: sop-init-frontend
 description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意前端项目后调用，自动扫描项目结构并生成 AGENTS.md + ai-context/ + rules/ + specs/ + demo/。适配 React/Vue/Taro/Next.js 等主流前端框架。
 ---
 
-<!-- SOP-VERSION: 3.3 -->
+<!-- SOP-VERSION: 3.4 -->
 
 # sop-init-frontend — 前端项目 AI 协作脚手架初始化（可插拔）
 
@@ -99,14 +99,16 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 ├── specs/
 │   ├── README.md                      # 从 templates/specs/README.md.template
 │   └── TEMPLATE.md                    # 从 templates/specs/TEMPLATE.md.template
-└── demo/
-    └── README.md                      # 从 templates/demo/README.md.template
+├── demo/
+│   └── README.md                      # 从 templates/demo/README.md.template
+└── scripts/
+    └── sop-check.mjs                  # 从本 kit scripts/sop-check.mjs 复制（SOP 健康检查 / CI 硬门禁）★
 ```
 
 ### 生成要求
 - **project-map.md**：精确标注路由注册点（手写 / file-based / 插件注入），附构建命令速查。
 - **design.md**：若扫描到特殊机制（插件注入、全局单例、微前端等），必须用独立章节详解。
-- **rules/frontend.md**：从真实代码提取风格（导出方式、命名规范、hooks 模式，标注风格来源）。
+- **rules/frontend.md**：从真实代码提取风格（导出方式、命名规范、hooks 模式，标注风格来源）。**填充「非功能需求 (NFR)」节** → `{{PERF_BUDGET}}` / `{{SECURITY_BASELINE}}` / `{{ACCESSIBILITY_RULES}}` / `{{COMPAT_MATRIX}}` / `{{I18N_RULES}}`（从构建配置/用户口述提取；未设预算填「未设预算」，不留空）。
 - **rules/skill-routing.md**：根据扫描到的 UI Skill 可用性，填充降级策略中的安装状态标记。
 - **rules/planning.md**：从模板直接生成（全静态，无需扫描填充），定义 L3 复杂任务四阶段规划流程（理解→设计→拆解→自审）。所有项目生成相同内容。
 - **rules/react.md**（仅 React 项目）：填充第 0 节「项目 React 代码风格」→ `{{REACT_COMPONENT_STYLE}}` / `{{REACT_FILE_ORGANIZATION}}` / `{{REACT_EXPORT_IMPORT}}` / `{{REACT_TYPE_PREFERENCES}}`（从阶段 0 扫描的真实代码中提取，标注来源文件；若样本不足且用户选了"不保留风格"，填入 React 官方推荐写法并标注）；填充 `react` 版本号 → `{{REACT_VERSION_RULES}}`；填充状态管理深层约定 → `{{STATE_MANAGEMENT_DEEP}}`（不仅填命名约定，还要从实际代码中提取 store 文件组织方式和 selector 写法）；填充用户额外约束 → `{{REACT_USER_CONSTRAINTS}}`。
@@ -159,6 +161,7 @@ SOP 初始化后，日常任务按以下阶段流转。AI 在每阶段自动读�
   │
   ├─→ 自测（testing.md 基线）
   │     tsc + build + 多端验证
+  │     + node scripts/sop-check.mjs（SOP 健康检查）
   │
   ├─→ Review（review.md 五轴清单 + web-design-guidelines / taste-skill 审美审查）
   │     + 填 acceptance 验证记录
@@ -168,6 +171,7 @@ SOP 初始化后，日常任务按以下阶段流转。AI 在每阶段自动读�
   │
   ├─→ 交付后复盘（workflow.md 闭环 D）
   │     问"有坑吗？"→ 记 rules / skill / demo
+  │     ★ 坑变成可勾选检查项（review.md / sop-check），不只写散文
   │
   └──→ 下一任务
 ```
@@ -182,10 +186,10 @@ AI 在对应阶段的行为：
 | **UI/UX 设计** ★ | 任务被分类为 UI 密集 | 激活 interface-design（信息架构）/ ui-ux-pro-max（UX 模式），设计结果先和用户确认 |
 | **Spec** | 用户确认走 specs | 按 TEMPLATE.md 建四件套目录 |
 | **实现** | spec 确认 / L1-L3 任务直接开始 | 读 `frontend.md` + `rules/react.md`（项目风格优先）+ Vercel react-best-practices（性能）+ Vercel composition-patterns（组件设计）+ UI Skill（如 impeccable）。L3 任务推荐 TDD（RED-GREEN-REFACTOR） |
-| **自测** | 实现完成 | 提醒跑 `tsc --noEmit` + 目标构建 |
-| **Review** | 自测通过 | 开 `review.md` 五轴检查，若有 UI 变更则激活 taste-skill 或 web-design-guidelines 做审美/系统化审查 |
+| **自测** | 实现完成 | 提醒跑 `tsc --noEmit` + 目标构建；建议跑 `node scripts/sop-check.mjs` 做 SOP 健康检查 |
+| **Review** | 自测通过 | 开 `review.md` 五轴检查 + 可执行检查命令，若有 UI 变更则激活 taste-skill 或 web-design-guidelines 做审美/系统化审查 |
 | **提交** | Review 通过 | 帮生成 conventional commit 消息 + PR 描述 |
-| **复盘** | 代码合入 | 主动问"有坑吗"，写入 rules（包括 react.md/vue.md 的「已知陷阱」）/demo/skill |
+| **复盘** | 代码合入 | 主动问"有坑吗"，写入 rules（包括 react.md/vue.md 的「已知陷阱」）/demo/skill。**坑要变成可勾选检查项**（追加到 `review.md` 对应轴或 `sop-check` 规则），不只写散文——让教训成为可执行的约束（累积一致性） |
 
 ---
 
@@ -268,7 +272,7 @@ AI 在对应阶段的行为：
 | 各 rules 文件的「用户声明的额外约束 / User Constraints」章节 | **保留**，不因模板升级而覆盖（用户口述内容是项目的永久资产） |
 | `project-map.md` / `design.md` / `prd.md` 中由扫描生成的项目事实 | **保留** |
 | 用户手写的章节 / 注释（不在模板骨架中的内容） | **保留** |
-| 模板新增的章节 / 文件（如 v2→v3 新增 `skill-routing.md`、`planning.md`） | **新增**，按模板骨架生成并填充 |
+| 模板新增的章节 / 文件（如 v2→v3 新增 `skill-routing.md`、`planning.md`；v3.3→v3.4 新增 `scripts/sop-check.mjs`） | **新增**，按模板骨架生成并填充（脚本类文件直接复制） |
 | 模板结构调整（如生命周期新增阶段） | **更新** `AGENTS.md` 导航 + `workflow.md` 阶段表 |
 | `rules/frontend.md` 等通用规则模板的措辞修订 | **合并**：以新模板为准，但保留项目特定的 INSERT 内容 |
 
@@ -292,8 +296,8 @@ AI 在对应阶段的行为：
   ├─→ 更新 AGENTS.md 的 SOP-VERSION 标记 + 导航链接
   │
   └─→ 输出变更报告：
-        "新增：planning.md / skill-routing.md
-         更新：workflow.md（新增任务分类阶段）
+        "新增：planning.md / skill-routing.md / scripts/sop-check.mjs
+         更新：workflow.md（新增任务分类阶段）/ frontend.md（新增 NFR 节）/ review.md（可执行检查）
          保留：你的项目特定内容未受影响"
 ```
 
