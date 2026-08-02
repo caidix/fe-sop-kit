@@ -13,7 +13,7 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const KIT_VERSION = "3.4";
+const KIT_VERSION = "3.5";
 const kitDir = process.cwd();
 const fails = [];
 const warns = [];

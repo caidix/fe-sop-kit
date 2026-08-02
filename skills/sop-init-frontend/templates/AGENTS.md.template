@@ -1,4 +1,4 @@
-<!-- SOP-VERSION: 3.4 -->
+<!-- SOP-VERSION: 3.5 -->
 # AGENTS.md — {{PROJECT_NAME}} 前端 AI 协作入口
 
 > 本文件是 CodeBuddy / WorkBuddy 等 AI 工具进入本项目时的**统一入口**。
@@ -43,10 +43,11 @@
 - `ai-context/project-map.md` —— 目录与页面注册方式
 - `ai-context/prd.md` —— 产品定位与模块清单
 - `ai-context/design.md` —— 架构与特有机制
-- `ai-context/rules/frontend.md` —— 代码风格（**必读**）
-- `ai-context/rules/react.md` —— React 框架专属约束（React 项目**必读**，第 0 节为项目代码风格）
-- `ai-context/rules/vue.md` —— Vue 框架专属约束（Vue 项目**必读**）
-- `ai-context/rules/platform.md` —— 多端部署与验证矩阵
+- `ai-context/rules/frontend.md` —— 前端通用代码风格（**前端项目必读**；后端项目不适用，见下方 `framework-generic.md`）
+- `ai-context/rules/react.md` —— React 框架专属约束（**仅 React 项目**生成，第 0 节为项目代码风格）
+- `ai-context/rules/vue.md` —— Vue 框架专属约束（**仅 Vue 项目**生成）
+- `ai-context/rules/framework-generic.md` —— 其他前端框架（Svelte/Angular/Solid/Vanilla）与后端语言（Python/Go/Java/...）的通用工程规则（**非 React/Vue 项目生成**，第 0 节为项目代码风格）
+- `ai-context/rules/platform.md` —— 多端部署与验证矩阵（多端项目必读）
 - `ai-context/rules/workflow.md` —— 开发流程纪律
 - `ai-context/rules/planning.md` —— 复杂任务规划模式（**L3 任务必读**，四阶段：理解→设计→拆解→自审）
 - `ai-context/rules/testing.md` —— 验证基线
@@ -57,6 +58,7 @@
   - react-best-practices（40+ 性能规则）/ composition-patterns（组件设计）/ web-design-guidelines（UI 审查）
 - **Vue 项目**推荐安装 Vue 官方 Skill：`npx skills add vuejs-ai/skills`
   - vue-best-practices / vue-router-best-practices / vue-pinia-best-practices / create-adaptable-composable 等（共 8 个）
+- **其他框架 / 语言**：本 SOP 没有为其预置官方 Skill，但 `rules/framework-generic.md` 的「第 0 节代码风格扫描」会从真实代码提取项目约定，第 2 节填入该栈官方最佳实践；如有社区 Skill（如 Svelte/Vue 之外的框架）可自行安装，SOP 通过 `skill-routing.md` 自动降级兼容
 - 未安装不影响开发，SOP 会自动降级使用项目 rules + 通用原则
 
 ## 大型 / 高风险任务 → 走规划模式 或 specs

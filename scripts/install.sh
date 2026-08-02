@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# yh-sop-fe-kit 互动式安装脚本  v3.4
+# yh-sop-fe-kit 互动式安装脚本  v3.5
 #
 # 自有 Skill（本仓库维护，始终安装）：
 #   - sop-init-frontend  — 提供「初始化 SOP」触发词
@@ -13,17 +13,25 @@
 #     vue-best-practices / vue-router-best-practices / vue-pinia-best-practices
 #     create-adaptable-composable / vue-testing-best-practices / vue-debug-guides 等
 #
-# 用法（在 Git Bash / Terminal 中执行）：
-#   ./scripts/install.sh              # 互动模式（推荐）
-#   ./scripts/install.sh --all-react  # 不互动，装自有 + React 推荐
-#   ./scripts/install.sh --all-vue    # 不互动，装自有 + Vue 推荐
-#   ./scripts/install.sh --all        # 不互动，装自有 + 全部推荐
+# 用法：
+#   Windows：直接双击或用 cmd/PowerShell 运行  scripts\install.bat
+#   Git Bash / Terminal：          bash scripts/install.sh
+#   非互动模式（CI）：             bash scripts/install.sh --all-react|--all-vue|--all
+#   直接指定工具（仍会问框架）：    bash scripts/install.sh workbuddy|codebuddy
 # ==============================================================================
 
 set -euo pipefail
 
+# ── 环境守卫：必须是 bash（避免 sh / dash 因数组和 [[ ]] 报语法错）──
+if [ -z "${BASH_VERSION:-}" ]; then
+  echo "❌ 本脚本需要 bash 运行。" >&2
+  echo "   请用以下任一方式：" >&2
+  echo "     • Git Bash / Terminal 中执行： bash scripts/install.sh" >&2
+  echo "     • Windows cmd/PowerShell 中执行： scripts\\install.bat" >&2
+  exit 1
+fi
+
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TARGET="${1:-}"  # 可选: workbuddy / codebuddy / 或 --all* 批量标记
 
 # 自有 Skill（v3.2：vue-best-practices 和 react-best-practices 均已废弃，由官方 Skill 替代）
 SELF_SKILLS=(
@@ -54,19 +62,19 @@ install_to() {
       echo "  ⚠️  跳过 $skill（源目录不存在: $src）"
       continue
     fi
-    cp -R "$src" "$skills_dir/"
+    cp -Rf "$src" "$skills_dir/"
     echo "  ✓ $skill"
   done
 
   echo "✅ 自有 Skill 已安装到 $skills_dir"
 }
 
-# ── 互动式选择 ──
+# ── 互动式选择框架 ──
 interactive_choose() {
   echo ""
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "  yh-sop-fe-kit v3.4 — Skill 安装"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "  yh-sop-fe-kit v3.5 — Skill 安装"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo ""
   echo "  自有 Skill（始终安装）："
   echo "    • sop-init-frontend — 项目 SOP 初始化"
@@ -79,7 +87,8 @@ interactive_choose() {
   echo "    [4] 跳过官方 Skill，只装自有 Skill"
   echo ""
 
-  read -r -p "  请选择 [1-4] (默认: 3): " choice
+  local choice=""
+  read -r -p "  请选择 [1-4] (默认: 3): " choice || choice=""
   choice="${choice:-3}"
 
   case "$choice" in
@@ -96,9 +105,9 @@ print_skill_suggestions() {
   case "${EXTRA_SKILLS:-none}" in
     react)
       echo ""
-      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       echo "  📦 React 官方 Skill（建议安装）"
-      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       echo ""
       echo "  安装命令（复制到终端执行）："
       echo ""
@@ -111,9 +120,9 @@ print_skill_suggestions() {
       ;;
     vue)
       echo ""
-      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       echo "  📦 Vue 官方 Skill（建议安装）"
-      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       echo ""
       echo "  安装命令（复制到终端执行）："
       echo ""
@@ -126,9 +135,9 @@ print_skill_suggestions() {
       ;;
     both)
       echo ""
-      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       echo "  📦 React + Vue 官方 Skill（建议安装）"
-      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       echo ""
       echo "  安装命令（复制到终端执行）："
       echo ""
@@ -148,23 +157,33 @@ print_skill_suggestions() {
   esac
 }
 
-# ── 主入口 ──
+# ── 参数解析 ──
+arg="${1:-}"
+TOOLS=()
+EXTRA_SKILLS=""
+SKIP_TOOL_PROMPT=0
 
-# 批量模式
-case "${1:-}" in
-  --all-react|--all-vue) TOOLS=(workbuddy) ;;  # 批量默认装 WorkBuddy
-  --all)                TOOLS=(workbuddy codebuddy) ;;  # all 装两者
-  *) TOOLS=() ;;
+case "$arg" in
+  --all-react) TOOLS=(workbuddy);     EXTRA_SKILLS="react" ;;
+  --all-vue)   TOOLS=(workbuddy);     EXTRA_SKILLS="vue" ;;
+  --all)       TOOLS=(workbuddy codebuddy); EXTRA_SKILLS="both" ;;
+  workbuddy)   TOOLS=(workbuddy);     SKIP_TOOL_PROMPT=1 ;;
+  codebuddy)   TOOLS=(codebuddy);     SKIP_TOOL_PROMPT=1 ;;
+  "")          : ;;  # 互动模式：工具 + 框架都问
+  *) echo "❌ 未知参数: $arg" >&2
+     echo "   用法: bash scripts/install.sh [--all-react|--all-vue|--all|workbuddy|codebuddy]" >&2
+     exit 1 ;;
 esac
 
-# 互动模式：先选工具，再选 Skill
+# 互动模式：先选工具（除非已用 workbuddy/codebuddy 指定），再选框架
 if [[ ${#TOOLS[@]} -eq 0 ]]; then
   echo ""
   echo "  安装到哪个 AI 工具？"
   echo "    [w] WorkBuddy（默认）"
   echo "    [c] CodeBuddy"
   echo "    [a] 两者都装"
-  read -r -p "  请选择 [w/c/a] (默认: w): " tool_choice
+  tool_choice=""
+  read -r -p "  请选择 [w/c/a] (默认: w): " tool_choice || tool_choice=""
   tool_choice="${tool_choice:-w}"
   case "$tool_choice" in
     w|W) TOOLS=(workbuddy) ;;
@@ -172,15 +191,10 @@ if [[ ${#TOOLS[@]} -eq 0 ]]; then
     a|A) TOOLS=(workbuddy codebuddy) ;;
     *) echo "  ⚠️  无效，默认 WorkBuddy"; TOOLS=(workbuddy) ;;
   esac
-
   interactive_choose
-else
-  # 批量模式：根据标志位决定
-  case "${1:-}" in
-    --all-react) EXTRA_SKILLS="react" ;;
-    --all-vue)   EXTRA_SKILLS="vue" ;;
-    --all)       EXTRA_SKILLS="both" ;;
-  esac
+elif [[ $SKIP_TOOL_PROMPT -eq 1 ]]; then
+  # workbuddy / codebuddy 直装，但框架仍需选择
+  interactive_choose
 fi
 
 # 执行安装

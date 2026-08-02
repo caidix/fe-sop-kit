@@ -3,7 +3,7 @@ name: sop-init-frontend
 description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意前端项目后调用，自动扫描项目结构并生成 AGENTS.md + ai-context/ + rules/ + specs/ + demo/。适配 React/Vue/Taro/Next.js 等主流前端框架。
 ---
 
-<!-- SOP-VERSION: 3.4 -->
+<!-- SOP-VERSION: 3.5 -->
 
 # sop-init-frontend — 前端项目 AI 协作脚手架初始化（可插拔）
 
@@ -44,6 +44,22 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 
 ---
 
+### 0.1 框架分类判定（决定生成哪个框架规则文件）
+
+扫描后按以下分类决定生成哪个框架级 rules 文件（**不再只支持 React/Vue**）：
+
+| 分类 | 检测信号 | 生成文件 |
+|------|---------|---------|
+| **React** | `package.json` 含 `react`（含 Next.js / Taro-React / Remix） | `rules/react.md` + `rules/frontend.md` |
+| **Vue** | `package.json` 含 `vue`（含 Nuxt / Taro-Vue） | `rules/vue.md` + `rules/frontend.md` |
+| **其他前端框架** | 含 `svelte` / `angular` / `solid` / 纯 `vite`+`vanilla` 等（非 React/Vue 的前端） | `rules/framework-generic.md`（填入 `{{FRAMEWORK_NAME}}`=Svelte/Angular/...，`{{FRAMEWORK_CATEGORY}}`=前端框架）+ `rules/frontend.md` |
+| **后端 / 非前端语言** | 含 `go.mod` / `requirements.txt` / `Cargo.toml` / `pom.xml` / `composer.json` / 纯 `package.json`(无前端框架) 等 | `rules/framework-generic.md`（`{{FRAMEWORK_CATEGORY}}`=后端语言）；**跳过 `frontend.md`**（其 UI 专属节不适用），改由 `framework-generic.md` 的 NFR 节承载质量约束 |
+| **未知 / 空项目** | 无任何框架信号 | 询问用户：① 指定框架/语言 → 生成 `framework-generic.md`；② 纯文档/配置仓库 → 仅生成通用规则（workflow/planning/testing/review/skill-routing），不生成框架文件 |
+
+> **关键原则**：`react.md` / `vue.md` 是深度专用模板（含官方 Skill 集成）；其余一切框架/语言统一走 `framework-generic.md` 的「第 0 节代码风格扫描」机制——从真实代码提取风格，官方最佳实践仅在 `{{FRAMEWORK_SPECIFIC_LAWS}}` 中作为补充说明。项目约定始终优先。
+
+---
+
 ## 阶段 1：询问确认（交互）
 
 用表格出示扫描结论，然后追问：
@@ -55,17 +71,18 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 5. **特殊机制**：是否有编译期插件注入、全局组件注入、微前端、getAppInfo 类全局单例等特殊架构？这问是关键——**猜错路由登记点可能让后续所有任务在错误文件上操作**。
 6. **分工模式**：单人 or 多人？是否需要主包/分包区分？
 7. **代码风格来源**：若扫描到代码风格不统一，询问以谁为准（特定作者 / 多数派 / 通用最佳实践）；若统一，直接确认即可。
-8. **样本不足处理 ★**：若阶段 0 标记了「React/Vue 代码风格样本不足」（项目组件 < 3 个 或 代码量极少），询问用户：
-   - "项目代码较少（仅 N 个组件），是否保留现有风格？"
+8. **样本不足处理 ★**：若阶段 0 标记了「框架代码风格样本不足」（项目源文件 < 3 个 或 代码量极少），询问用户：
+   - "项目代码较少（仅 N 个源文件），是否保留现有风格？"
    - 保留 → 以现有写法为准，逐一提取填入规则文件
-   - 不保留 → 采用框架官方最佳实践作为默认风格（`react.md`/`vue.md` 第 0 节填入「官方推荐」标注）
+   - 不保留 → 采用框架官方最佳实践作为默认风格（对应框架 rules 第 0 节填入「官方推荐」标注）
    - 若用户自己描述了他想要的风格（如"我要全部用 named export"），记录并填入第 0 节
 9. **用户额外代码约束 ★**：**无论样本是否充足，主动询问用户**：
    - "你是否有额外的代码约束想加入项目规则？例如命名规则、目录约定、禁止事项等。口述即可，我会识别并写入。"
-   - 若用户提供了约束 → AI 逐个解析，识别每条约束归属（React 专有 / Vue 专有 / 通用），分别写入：
+   - 若用户提供了约束 → AI 逐个解析，识别每条约束归属（React 专有 / Vue 专有 / 其他框架专有 / 通用），分别写入：
      - React 专有 → `rules/react.md` 第 0.6 节 `{{REACT_USER_CONSTRAINTS}}`
      - Vue 专有 → `rules/vue.md` 第 0.6 节 `{{VUE_USER_CONSTRAINTS}}`
-     - 通用（跨框架）→ `rules/frontend.md`「用户声明的代码约束」 `{{FRONTEND_USER_CONSTRAINTS}}`
+     - 其他框架/语言专有 → `rules/framework-generic.md` 第 0.6 节 `{{GENERIC_USER_CONSTRAINTS}}`
+     - 通用（跨框架）→ `rules/frontend.md`「用户声明的代码约束」 `{{FRONTEND_USER_CONSTRAINTS}}`（后端项目则写入 `framework-generic.md` 第 0.6 节）
    - 每条约束用 checkbox 格式，标注来源「用户口述」
    - 若用户说"没有" → 跳过，填充「暂无额外约束」
 10. **Vercel 官方 Skill**：若扫描到已安装 Vercel 的 react-best-practices / web-design-guidelines / composition-patterns，告知用户"检测到已安装，SOP 将自动激活"。若未安装，建议用户执行 `npx skills add vercel-labs/agent-skills`（React 项目）。本 SOP 的 `ui-skill-router` 调度器可在未安装时自动降级。
@@ -95,7 +112,8 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 │       ├── review.md                  # 从 templates/ai-context/rules/review.md.template
 │       ├── skill-routing.md           # 从 templates/ai-context/rules/skill-routing.md.template ★
 │       ├── react.md                   # 从 templates/ai-context/rules/react.md.template（仅 React 项目）
-│       └── vue.md                     # 从 templates/ai-context/rules/vue.md.template（仅 Vue 项目）
+│       ├── vue.md                     # 从 templates/ai-context/rules/vue.md.template（仅 Vue 项目）
+│       └── framework-generic.md       # 从 templates/ai-context/rules/framework-generic.md.template（其他前端框架/后端语言/未知，分类生成）
 ├── specs/
 │   ├── README.md                      # 从 templates/specs/README.md.template
 │   └── TEMPLATE.md                    # 从 templates/specs/TEMPLATE.md.template
@@ -113,6 +131,7 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 - **rules/planning.md**：从模板直接生成（全静态，无需扫描填充），定义 L3 复杂任务四阶段规划流程（理解→设计→拆解→自审）。所有项目生成相同内容。
 - **rules/react.md**（仅 React 项目）：填充第 0 节「项目 React 代码风格」→ `{{REACT_COMPONENT_STYLE}}` / `{{REACT_FILE_ORGANIZATION}}` / `{{REACT_EXPORT_IMPORT}}` / `{{REACT_TYPE_PREFERENCES}}`（从阶段 0 扫描的真实代码中提取，标注来源文件；若样本不足且用户选了"不保留风格"，填入 React 官方推荐写法并标注）；填充 `react` 版本号 → `{{REACT_VERSION_RULES}}`；填充状态管理深层约定 → `{{STATE_MANAGEMENT_DEEP}}`（不仅填命名约定，还要从实际代码中提取 store 文件组织方式和 selector 写法）；填充用户额外约束 → `{{REACT_USER_CONSTRAINTS}}`。
 - **rules/vue.md**（仅 Vue 项目）：填充第 0 节「项目 Vue 代码风格」→ `{{VUE_COMPONENT_STYLE}}` / `{{VUE_FILE_ORGANIZATION}}` / `{{VUE_EXPORT_IMPORT}}` / `{{VUE_TYPE_PREFERENCES}}` / `{{VUE_TEMPLATE_STYLE}}`（从阶段 0 扫描的真实代码中提取，标注来源文件；样本不足时同理处理）；填充 `vue` 版本号 → `{{VUE_VERSION_RULES}}`；填充 Store 约定 → `{{VUE_STORE_CONVENTIONS}}`；填充用户额外约束 → `{{VUE_USER_CONSTRAINTS}}`。
+- **rules/framework-generic.md**（其他前端框架 / 后端语言 / 未知项目）：填充 `{{FRAMEWORK_NAME}}`（Svelte/Angular/Solid/Vanilla/Python/Go/Java/...）与 `{{FRAMEWORK_CATEGORY}}`（前端框架 / 后端语言）；第 0 节从真实代码采样提取 → `{{GENERIC_DECLARATION_STYLE}}` / `{{GENERIC_FILE_ORGANIZATION}}` / `{{GENERIC_IMPORT_CONVENTIONS}}` / `{{GENERIC_NAMING_FORMAT}}`（标注来源文件，样本不足时按阶段 1 第 8 问处理）；第 1 节通用工程纪律填充 → `{{GENERIC_ASYNC_RULES}}` / `{{GENERIC_LOGGING}}`；第 2 节填入该框架/语言的官方最佳实践与常见陷阱 → `{{FRAMEWORK_SPECIFIC_LAWS}}`（AI 依据检测到的技术栈生成）；用户额外约束 → `{{GENERIC_USER_CONSTRAINTS}}`；NFR 五占位同 `frontend.md`；已知陷阱 → `{{GENERIC_TRAPS}}`。**后端项目不生成 `frontend.md`**，质量约束完全由本文件 NFR 节承载。
 - **rules/testing.md**：无单测项目 → 验证基线 = `类型检查 + 构建`，补自测清单。
 - **rules/platform.md**：多端项目必须列出部署矩阵 + 每端验证命令。
 - **.gitignore**：在项目根或子项目 `.gitignore` 追加 `.workbuddy/` `.codebuddy/` 行。
@@ -156,7 +175,7 @@ SOP 初始化后，日常任务按以下阶段流转。AI 在每阶段自动读�
   │     是 → specs/ 四件套 → 确认后再动手
   │     否 → 直接实现
   │
-  ├─→ 实现（frontend.md + react.md/vue.md + 激活的 Skill）
+  ├─→ 实现（frontend.md + 框架 rules[react.md|vue.md|framework-generic.md] + 激活的 Skill）
   │     TDD 推荐用于 L3（RED-GREEN-REFACTOR）
   │
   ├─→ 自测（testing.md 基线）
@@ -185,7 +204,7 @@ AI 在对应阶段的行为：
 | **规划** ★ | L3 复杂任务 | 读 `planning.md` → 四阶段（理解→设计→拆解→自审）→ 产出 `specs/<slug>/` 并等用户批准。**方案确认前不写代码** |
 | **UI/UX 设计** ★ | 任务被分类为 UI 密集 | 激活 interface-design（信息架构）/ ui-ux-pro-max（UX 模式），设计结果先和用户确认 |
 | **Spec** | 用户确认走 specs | 按 TEMPLATE.md 建四件套目录 |
-| **实现** | spec 确认 / L1-L3 任务直接开始 | 读 `frontend.md` + `rules/react.md`（项目风格优先）+ Vercel react-best-practices（性能）+ Vercel composition-patterns（组件设计）+ UI Skill（如 impeccable）。L3 任务推荐 TDD（RED-GREEN-REFACTOR） |
+| **实现** | spec 确认 / L1-L3 任务直接开始 | 读 `frontend.md`（前端项目）+ 框架 rules：`rules/react.md`（React）/ `rules/vue.md`（Vue）/ `rules/framework-generic.md`（其他框架/语言，项目风格优先）+ 对应官方 Skill（如有）。L3 任务推荐 TDD（RED-GREEN-REFACTOR） |
 | **自测** | 实现完成 | 提醒跑 `tsc --noEmit` + 目标构建；建议跑 `node scripts/sop-check.mjs` 做 SOP 健康检查 |
 | **Review** | 自测通过 | 开 `review.md` 五轴检查 + 可执行检查命令，若有 UI 变更则激活 taste-skill 或 web-design-guidelines 做审美/系统化审查 |
 | **提交** | Review 通过 | 帮生成 conventional commit 消息 + PR 描述 |
@@ -205,6 +224,7 @@ AI 在对应阶段的行为：
 
 **React / Vue 项目的 Skill 来源**：
 - **项目 Rules**：`rules/react.md` / `rules/vue.md`（SOP 初始化生成，含项目代码风格 + 框架铁律）— **最高优先级**
+- **其他框架 / 语言项目 Rules**：`rules/framework-generic.md`（SOP 初始化生成，覆盖 Svelte/Angular/Solid/Vanilla/Python/Go/Java 等，含第 0 节代码风格扫描 + 通用工程纪律 + 该栈官方最佳实践）— **最高优先级**，与 React/Vue 的 `rules/*` 同一机制
 - **React — Vercel 官方 Skill**：`react-best-practices` / `composition-patterns` / `web-design-guidelines`，通过 `npx skills add vercel-labs/agent-skills` 安装
 - **Vue — Vue 官方 Skill**：`vue-best-practices` / `vue-router-best-practices` / `vue-pinia-best-practices` 等 8 个，通过 `npx skills add vuejs-ai/skills` 安装
 - **本仓库旧版 `react-best-practices` / `vue-best-practices`**：已于 v3.0/v3.2 废弃、v3.3 移除。原规则已合并入对应 `rules/` 文件（`rules/react.md` / `rules/vue.md`）作为项目级兜底；性能/最佳实践由官方 Skill 承接。

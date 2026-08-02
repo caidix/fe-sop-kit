@@ -18,7 +18,7 @@
   │     ├─ UI Skills（interface-design / ui-ux-pro-max / impeccable / taste-skill）
   │     ├─ Vercel 官方 Skills（react-best-practices / web-design-guidelines / composition-patterns）
   │     ├─ Vue 官方 Skills（vue-best-practices / vue-router-best-practices / vue-pinia-best-practices 等）
-  │     └─ 框架 Rules（rules/react.md / rules/vue.md + frontend.md）
+  │     └─ 框架 Rules（rules/react.md / rules/vue.md / rules/framework-generic.md + frontend.md）
   │
   ├─→ 激活对应 Skill（按阶段接力，未安装则降级）
   │
@@ -59,7 +59,7 @@
 
 | 级别 | Skill | 安装方式 | 说明 |
 |------|-------|---------|------|
-| **项目 Rules** | `rules/react.md` / `rules/vue.md` / `rules/frontend.md` | SOP 初始化自动生成 | **最高优先级**，项目约定以此为准 |
+| **项目 Rules** | `rules/react.md` / `rules/vue.md` / `rules/framework-generic.md` / `rules/frontend.md` | SOP 初始化自动生成 | **最高优先级**，项目约定以此为准 |
 | **Vercel 官方** | `react-best-practices` / `web-design-guidelines` / `composition-patterns` | `npx skills add vercel-labs/agent-skills` | 通用最佳实践，由官方维护 |
 | **用户级 UI** | `interface-design` / `ui-ux-pro-max` / `impeccable` / `taste-skill` | 用户自行安装到 `~/.workbuddy/skills/` | UI 专项能力，按需安装 |
 
@@ -164,8 +164,11 @@ ui-ux-pro-max ─────────────→  ui-ux-pro-max
 | Next.js | Vercel react-best-practices + Vercel composition-patterns + Next.js 特定规则 | `rules/react.md` + `rules/frontend.md` |
 | Taro（React） | Vercel react-best-practices + 多端约束 | `rules/react.md` + `rules/platform.md` |
 | Taro（Vue） | Vue vue-best-practices + 多端约束 | `rules/vue.md` + `rules/platform.md` |
+| **其他前端框架**（Svelte/Angular/Solid/Vanilla） | 社区 Skill（如有）｜否则通用原则 | `rules/framework-generic.md`（填入框架名）+ `rules/frontend.md` |
+| **后端 / 非前端语言**（Python/Go/Java/Rust/Node 后端/...） | 社区 Skill（如有）｜否则通用工程原则 | `rules/framework-generic.md`（填入语言名，跳过 `frontend.md`） |
+| **未知 / 空项目** | 不激活框架 Skill | 仅通用 rules（workflow/planning/testing/review/skill-routing）；用户指定框架后再补 `framework-generic.md` |
 
-> **关键原则**：官方 Skill 提供通用最佳实践，但项目 `rules/react.md`/`rules/vue.md` 中提取的项目代码风格（第 0 节）**始终优先**。
+> **关键原则**：官方 Skill 提供通用最佳实践，但项目 `rules/react.md`/`rules/vue.md`/`rules/framework-generic.md` 中提取的项目代码风格（第 0 节）**始终优先**。非 React/Vue 框架没有预置官方 Skill，依赖 `framework-generic.md` 第 2 节的该栈官方最佳实践 + 通用工程纪律。
 
 ---
 

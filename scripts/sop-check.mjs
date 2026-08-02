@@ -16,7 +16,7 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const KIT_VERSION = "3.4"; // 与 kit 当前版本对齐，用于漂移检测
+const KIT_VERSION = "3.5"; // 与 kit 当前版本对齐，用于漂移检测
 const cwd = process.cwd();
 const args = new Set(process.argv.slice(2));
 const STRICT = args.has("--strict");
@@ -56,14 +56,24 @@ if (!agents) {
 
 // ── 2. 必要 rules 文件（FAIL）──
 const rulesDir = join(cwd, "ai-context", "rules");
-const required = ["frontend.md", "platform.md", "workflow.md", "planning.md", "testing.md", "review.md", "skill-routing.md"];
+const required = ["workflow.md", "planning.md", "testing.md", "review.md", "skill-routing.md"];
 for (const f of required) {
   if (!existsSync(join(rulesDir, f))) fail(`缺少必要规则文件：ai-context/rules/${f}`);
 }
-// 框架 rules：react.md 或 vue.md 至少一个
+// 框架 rules：react.md / vue.md / framework-generic.md 至少一个（覆盖前端/其他框架/后端）
 const hasReact = existsSync(join(rulesDir, "react.md"));
 const hasVue = existsSync(join(rulesDir, "vue.md"));
-if (!hasReact && !hasVue) fail("缺少框架规则：ai-context/rules/react.md 或 vue.md 至少需要其一。");
+const hasGeneric = existsSync(join(rulesDir, "framework-generic.md"));
+if (!hasReact && !hasVue && !hasGeneric) {
+  fail("缺少框架规则：ai-context/rules/ 下 react.md / vue.md / framework-generic.md 至少需要其一。");
+}
+// frontend.md / platform.md 为条件性文件（非所有项目适用），缺失仅 WARN
+if (!existsSync(join(rulesDir, "frontend.md")) && !hasGeneric) {
+  warn("缺少 frontend.md——若项目为前端项目请确认模板生成完整；后端项目应由 framework-generic.md 承载。");
+}
+if (!existsSync(join(rulesDir, "platform.md"))) {
+  warn("缺少 platform.md——非多端项目可忽略；多端项目建议补充部署与验证矩阵。");
+}
 
 // ── 3. 未填占位符（FAIL）──
 const placeholderRe = /\{\{[A-Z0-9_]+\}\}/g;
@@ -111,9 +121,13 @@ for (const [para, files] of paragraphs) {
 }
 
 // ── 7. NFR 节存在性（WARN）──
+// 前端项目查 frontend.md；其他框架/后端项目查 framework-generic.md
 const frontend = readText(join(rulesDir, "frontend.md"));
-if (frontend && !/非功能需求|NFR/.test(frontend)) {
-  warn("frontend.md 缺少「非功能需求 (NFR)」节——性能/安全/可访问预算应作为可恢复约束。");
+const generic = readText(join(rulesDir, "framework-generic.md"));
+const nfrSource = frontend || generic;
+if (nfrSource && !/非功能需求|NFR/.test(nfrSource)) {
+  const which = frontend ? "frontend.md" : "framework-generic.md";
+  warn(`${which} 缺少「非功能需求 (NFR)」节——性能/安全/可访问预算应作为可恢复约束。`);
 }
 
 // ── 8. specs 健康度（WARN）──

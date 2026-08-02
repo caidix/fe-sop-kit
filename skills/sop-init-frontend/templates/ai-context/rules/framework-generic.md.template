@@ -1,0 +1,178 @@
+# rules/framework-generic.md — {{FRAMEWORK_NAME}} 项目工程规则
+
+> **本文件的定位**：当 SOP 初始化检测到项目使用 **{{FRAMEWORK_NAME}}**（分类：{{FRAMEWORK_CATEGORY}}），且本 kit 没有该框架的专用模板时，生成此文件作为**框架级兜底约束**。
+>
+> 它复用与 `react.md` / `vue.md` 完全相同的「第 0 节项目代码风格」机制——**从真实代码扫描提取，而非套用教科书**。项目约定始终优先于任何通用最佳实践。
+
+---
+
+style_source: {{STYLE_SOURCE}}（{{STYLE_SOURCE_DETAIL}}）
+
+---
+
+## 0. 项目代码风格（从真实代码提取，本文件最高优先级）
+
+> 以下规则**不是教科书**，而是从本项目已存在的代码中**扫描提取**的实际做法。新代码必须与以下风格一致。
+> 若扫描到的模式与下方通用规则冲突，以扫描结果为准。
+
+<!--
+  扫描前：判断样本量
+  - 样本充足（≥ 3 个源文件，代码量 > 50 行）→ 正常提取并填入下方
+  - 样本不足（< 3 个文件 或 代码量极少）→ 询问用户：
+    "项目代码较少（仅 N 个文件），是否保留现有风格？
+     保留 → 以现有写法为准，我会逐一提取；
+     不保留 → 采用 {{FRAMEWORK_NAME}} 官方最佳实践作为默认风格。"
+  - 用户选择「不保留」→ 下方填入官方推荐写法，并标注「（官方推荐，非项目代码提取）」
+  - 用户选择「保留」→ 如实提取，能提取多少填多少
+-->
+
+### 0.1 声明 / 组件 / 类型方式
+<!-- AI-INSERT: 从项目源码采样 5-10 个文件，提取（按语言/框架择适）：
+  - 声明方式：function / class / const+箭头函数 / 装饰器(Decorator) / 组件对象
+  - 类型/接口定义方式：interface / type / 内联标注 / 注解(Annotation)
+  - 示例（从真实代码中摘取一两段代表性写法）
+-->
+{{GENERIC_DECLARATION_STYLE}}
+
+### 0.2 文件组织方式
+<!-- AI-INSERT: 扫描项目组织模式：
+  - 目录结构（按功能分 / 按类型分）
+  - 单文件单模块？还是允许同一文件导出多个单元？
+  - 测试文件位置（同目录 .test / __tests__ / 独立 test/）
+  - barrel 文件（index.ts 再导出）约定
+-->
+{{GENERIC_FILE_ORGANIZATION}}
+
+### 0.3 导入 / 包管理约定
+<!-- AI-INSERT: 从代码中提取：
+  - 导入顺序（第三方 → 内部包 → 相对路径 → 样式/资源）
+  - 路径别名（@/ / ~/ / src/）
+  - 包管理工具（npm / pnpm / yarn / go mod / pip / cargo / maven）
+  - 禁止引入的包或模式
+-->
+{{GENERIC_IMPORT_CONVENTIONS}}
+
+### 0.4 命名与格式偏好
+<!-- AI-INSERT: 项目格式偏好：
+  - 命名风格（camelCase / snake_case / PascalCase / kebab-case）
+  - 缩进（2/4 空格 / tab）、引号（单/双）、分号、尾逗号
+  - 这些若由 formatter（Prettier / gofmt / black / rustfmt）统一，标注「由 X 统一，禁止手改格式」
+-->
+{{GENERIC_NAMING_FORMAT}}
+
+### 0.5 扫描自检（初始化时 AI 必须做）
+生成本文件时，AI 必须：
+1. 先判断样本量是否充足（≥ 3 个源文件，代码量 > 50 行）
+2. 样本不足 → 询问用户「保留现有风格」还是「采用官方推荐」
+3. 样本充足 → 在项目源码中采样 5-10 个文件，提取上述模式
+4. 将提取结果填入上方对应的 `{{占位符}}`
+5. 在每个占位符下方标注**来源文件路径**，证明规则的出处
+6. 若项目代码风格不统一（多种写法混用），标注**主流写法**（出现频率 > 70%）作为标准，并在下方列出**例外文件**
+7. 主动询问用户：**「你是否有额外的代码约束想加入？例如命名规则、目录约定、禁止事项等。口述即可，我会识别并写入。」**
+8. 将用户口述的约束填入下方第 0.6 节（`{{GENERIC_USER_CONSTRAINTS}}`）
+
+### 0.6 用户声明的额外约束
+<!-- AI-INSERT: 若用户在 SOP 初始化或「更新 SOP」时口述了额外的代码约束，AI 识别后逐个填入此节。
+  格式：每条一个 checkbox，注明来源（用户口述 / 团队规范 / 代码审查约定）
+  示例：
+  - "所有导出函数必须有 JSDoc / docstring"
+  - "禁止相对路径超过 3 层（../../），必须用路径别名"
+  - "函数参数超过 3 个时必须用对象参数"
+  - "提交前必须删除所有 debug 打印语句"
+-->
+{{GENERIC_USER_CONSTRAINTS}}
+
+---
+
+## 1. 通用工程纪律（语言 / 框架无关）
+
+### 1.1 错误处理
+- [ ] 不得吞掉异常（empty catch / bare except / ignored error）
+- [ ] 对外边界（API / 文件 IO / 网络）必须有错误处理与回退
+- [ ] 错误信息不得泄露敏感信息（token / 密钥 / 内部路径 / 堆栈）
+
+### 1.2 异步 / 并发
+<!-- AI-INSERT: 按语言/框架填充约定：
+  JS: Promise / async-await、禁止无序并行、取消机制
+  Go: goroutine 泄漏、context 取消、channel 关闭规则
+  Python: 协程/asyncio、线程安全
+  Java: 线程池、CompletableFuture、资源关闭
+  其他语言按官方惯例填充
+-->
+{{GENERIC_ASYNC_RULES}}
+
+### 1.3 测试
+- [ ] 核心逻辑必须有测试覆盖
+- [ ] 修复 Bug 先写复现测试（TDD 红绿循环）
+- [ ] 测试文件位置与命名遵循项目约定（见 0.2）
+
+### 1.4 日志与可观测
+<!-- AI-INSERT: 日志规范、禁止裸 print/console.log 提交、统一 logger、敏感信息脱敏 -->
+{{GENERIC_LOGGING}}
+
+---
+
+## 2. {{FRAMEWORK_NAME}} 特定铁律
+<!-- AI-INSERT: 根据检测到的框架/语言，填入其官方最佳实践与常见陷阱。
+  示例（Svelte）：响应式声明 $:、store 订阅必须取消、onMount 清理、context 生命周期
+  示例（Angular）：依赖注入作用域、RxJS 取消订阅(takeUntil/onDestroy)、OnPush 变更检测
+  示例（Solid）：细粒度响应式、createSignal/createEffect、避免虚拟 DOM 心智模型
+  示例（Vanilla JS）：模块化(ESM)、严格模式、事件委托
+  示例（Python）：类型标注、虚拟环境、PEP8、GIL 注意点
+  示例（Go）：error 显式返回、goroutine 泄漏、defer 资源释放、context 传递
+  示例（Java）：异常处理、null 安全(Optional)、try-with-resources、JDK 版本约束
+  示例（Rust）：所有权/借用、Result 错误处理、unwrap 禁止在生产
+  示例（Node 后端）：异步错误处理、流式响应、环境变量配置
+-->
+{{FRAMEWORK_SPECIFIC_LAWS}}
+
+---
+
+## 3. 非功能需求（NFR）★
+
+> 项目级的质量属性约束，作为**可恢复、可校验**的上下文（移植自 harness-engineering：把组织 NFR 沉淀为 agent 可读的约束）。
+> Review 阶段必须对照本节逐项确认；`scripts/sop-check.mjs` 会校验本节存在。
+> 未明确的项填「未设预算」即可，不要留空或 TBD。
+
+### 性能预算
+<!-- AI-INSERT: 从构建配置或用户口述提取。示例：
+  - 首屏 JS gzip < 150KB（前端）
+  - API P99 延迟 < 200ms（后端）
+  - 构建时长上限
+-->
+{{PERF_BUDGET}}
+
+### 安全基线
+<!-- AI-INSERT: 项目安全约定。示例：
+  - 用户输入一律校验/转义
+  - 密钥不入库、不进日志
+  - 危险操作走统一 sanitize / 参数化查询（防注入）
+-->
+{{SECURITY_BASELINE}}
+
+### 可访问性
+<!-- AI-INSERT: 仅前端有意义；后端填「不适用」。前端示例：
+  - 交互元素必有 aria-label / role
+  - 颜色对比度 ≥ 4.5:1
+-->
+{{ACCESSIBILITY_RULES}}
+
+### 兼容矩阵
+<!-- AI-INSERT: 浏览器/运行时/OS 兼容。示例：
+  前端：Chrome ≥ 90 / Safari iOS ≥ 15
+  后端：Node ≥ 18 / Go 1.21 / Python 3.11
+-->
+{{COMPAT_MATRIX}}
+
+### 国际化
+<!-- AI-INSERT: i18n 约定。示例：文案走 key、禁止硬编码用户语言、日期/货币本地化 -->
+{{I18N_RULES}}
+
+---
+
+## 4. 已知陷阱（随着项目开发追加）
+
+<!-- 项目开发中遇到的 {{FRAMEWORK_NAME}} 特定坑记录在此。
+  每次解决新坑后追加一条：现象 / 根因 / 解法 / 日期 + 记录人
+-->
+{{GENERIC_TRAPS}}
