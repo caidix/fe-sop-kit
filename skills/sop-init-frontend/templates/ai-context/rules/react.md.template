@@ -1,0 +1,298 @@
+# rules/react.md — React 框架专属规则
+
+> **本文件的定位**：项目的 React 代码「宪法」。它以 Vercel 官方 `react-best-practices` Skill（40+ 性能规则）为**外部补充**，但本项目特有的代码风格、状态管理约定、已知陷阱**以此文件为准**。
+>
+> **读取顺序**：AI 先读本文件（项目约定），再加载 Vercel 官方 Skill（通用性能规则）。两者的优先级关系：
+> - 本文件规则 > Vercel Skill 规则（项目约定优先）
+> - 本文件未覆盖的性能领域 → 由 Vercel Skill 补充
+> - Skill 未安装不影响开发，但性能优化建议会降级为通用原则
+
+---
+style_source: {{STYLE_SOURCE}}（{{STYLE_SOURCE_DETAIL}}）
+
+---
+
+## 0. 项目 React 代码风格（从真实代码提取，本文件最高优先级）
+
+> 以下规则**不是教科书**，而是从本项目已存在的代码中**扫描提取**的实际做法。新代码必须与以下风格一致。
+> 若扫描到的模式与下方通用规则冲突，以扫描结果为准。
+
+<!-- 
+  扫描前：判断样本量
+  - 样本充足（≥ 3 个组件文件，代码量 > 50 行）→ 正常提取并填入下方
+  - 样本不足（< 3 个文件 或 代码量极少）→ 询问用户：
+    "项目代码较少（仅 N 个 React 组件），是否保留现有风格？
+     保留 → 以现有写法为准，我会逐一提取；
+     不保留 → 采用 React 官方最佳实践作为默认风格。"
+  - 用户选择「不保留」→ 下方填入 React 官方推荐写法，并标注「（官方推荐，非项目代码提取）」
+  - 用户选择「保留」→ 如实提取，能提取多少填多少
+-->
+
+### 0.1 组件声明方式
+<!-- AI-INSERT: 从项目 src/ 扫描以下模式，标注来源文件：
+  - 组件声明方式：function 声明 / 箭头函数 / const + function expression
+  - 是否使用 React.FC 类型标注？是 → 保留；否 → 禁止
+  - Props 定义方式：独立 interface / 内联 type / 解构参数内标注
+  - 示例（从真实组件中摘取一两段代表性写法）
+-->
+{{REACT_COMPONENT_STYLE}}
+
+### 0.2 文件组织方式
+<!-- AI-INSERT: 扫描组件文件组织模式：
+  - 每个组件独立文件夹（ComponentName/index.tsx）？还是平铺？
+  - 样式文件放哪里？（同目录 .module.scss / 独立 styles/ 目录 / CSS-in-JS）
+  - 一个文件一个组件？还是允许同一文件导出多个小组件？
+-->
+{{REACT_FILE_ORGANIZATION}}
+
+### 0.3 导出与导入约定
+<!-- AI-INSERT: 从代码中提取：
+  - 组件用 default export 还是 named export？
+  - 路径别名（@/ / ~/ / src/）
+  - 事件处理函数命名模式（handleXxx / onXxx / 其他）
+-->
+{{REACT_EXPORT_IMPORT}}
+
+### 0.4 类型标注偏好
+<!-- AI-INSERT: 类型相关的项目偏好：
+  - state 类型标注方式（useState<Type>() vs useState() with initial value）
+  - ref 类型标注方式（useRef<HTMLDivElement>(null) vs useRef<Type>(initialValue)）
+  - event handler 类型（React.ChangeEvent / Event / 直接用 any？）
+  - children 类型（React.ReactNode / React.FC / PropsWithChildren）
+-->
+{{REACT_TYPE_PREFERENCES}}
+
+### 0.5 扫描自检（初始化时 AI 必须做）
+生成本文件时，AI 必须：
+1. 先判断样本量是否充足（≥ 3 个组件文件，代码量 > 50 行）
+2. 样本不足 → 询问用户「保留现有风格」还是「采用官方推荐」
+3. 样本充足 → 在项目 `src/` 中采样 5-10 个组件文件，提取上述模式
+4. 将提取结果填入上方对应的 `{{占位符}}`
+5. 在每个占位符下方标注**来源文件路径**，证明规则的出处
+6. 若项目代码风格不统一（多种写法混用），标注**主流写法**（出现频率 > 70%）作为标准，并在下方列出**例外文件**（允许特殊情况）
+7. 主动询问用户：**「你是否有额外的代码约束想加入？例如命名规则、目录约定、禁止事项等。口述即可，我会识别并写入。」**
+8. 将用户口述的约束填入下方第 0.6 节（`{{REACT_USER_CONSTRAINTS}}`）
+
+### 0.6 用户声明的额外约束
+<!-- AI-INSERT: 若用户在 SOP 初始化或「更新 SOP」时口述了额外的 React 代码约束，AI 识别后逐个填入此节。
+  示例：
+  - "所有 API 调用必须通过 useQuery / useMutation 封装，禁止直接在组件里写 fetch"
+  - "useEffect 只有在数据加载、事件监听、DOM 操作这三种场景下才能用"
+  - "组件文件超过 300 行必须拆分"
+  - "禁止在组件内使用 export default，必须用 named export"
+  - "所有可选 props 必须有默认值"
+  格式：每条一个 checkbox，注明来源（用户口述 / 团队规范 / 代码审查约定）
+-->
+{{REACT_USER_CONSTRAINTS}}
+
+---
+
+## 1. Hooks 铁律（违反即 Bug）
+
+### 1.1 调用位置
+- [ ] Hooks **只能在函数组件顶部调用**，不得在条件、循环、嵌套函数中调用
+- [ ] 自定义 Hook 必须以 `use` 开头
+
+### 1.2 依赖数组
+- [ ] `useEffect` / `useMemo` / `useCallback` 的依赖数组**必须完整**，不得有意省略
+- [ ] 依赖数组中的引用类型 → 必要时应使用 `useRef` 持有不变引用
+- [ ] 不得为了"只执行一次"而给 `useEffect` 空依赖数组但内部使用了外部变量
+
+### 1.3 Effect 清理
+- [ ] 所有 `useEffect` 中的订阅、定时器、事件监听**必须有 cleanup 函数**
+- [ ] Cleanup 函数不得引用已卸载组件的 setState
+
+```tsx
+// ✅ 正确
+useEffect(() => {
+  const timer = setInterval(() => { /* ... */ }, 1000);
+  return () => clearInterval(timer);
+}, [dependency]);
+```
+
+### 1.4 自定义 Hook 规范
+- [ ] 单一职责：一个 Hook 只做一件事
+- [ ] 返回值使用对象解构（`const { data, loading } = useXxx()`），而非数组解构（除非对标 `useState` 风格）
+- [ ] 自定义 Hook 内部不得直接操作 DOM（除非明确命名为 `useClickOutside` 等）
+
+---
+
+## 2. 组件渲染优化
+
+### 2.1 优化触发条件（先有证据再优化）
+- [ ] **不得**对所有组件无脑套 `React.memo`
+- [ ] 触发优化的充分条件：React DevTools Profiler 中确认了不必要的重渲染
+- [ ] 纯展示组件（无副作用、纯 props → JSX）→ 可以用 `React.memo`
+
+### 2.2 memo / useMemo / useCallback 使用指南
+
+| 手段 | 何时用 | 何时不用 |
+|------|-------|---------|
+| `React.memo` | 组件接收复杂 props 且父组件频繁渲染 | 组件本身很简单（渲染成本低） |
+| `useMemo` | 计算开销大（数组 filter/map + 组合、大对象构造） | 简单计算、基本类型拼接 |
+| `useCallback` | 传递给子组件的回调，且子组件用了 `React.memo` | 普通事件处理、没有 memo 子组件 |
+
+### 2.3 渲染次数硬约束
+- [ ] 单个用户交互触发的组件渲染次数 ≤ 3（不可见的不必要渲染也应消除）
+- [ ] 列表项组件必须考虑 key 的唯一性与稳定性（禁止用 `index` 作为 key）
+
+---
+
+## 3. 状态管理深层约定
+
+<!-- AI-INSERT: 根据扫描到的状态库（Redux / Zustand / Jotai / Recoil 等）选择对应章节填充。以下为通用约定。 -->
+
+### 3.1 状态分层原则
+| 层级 | 存放位置 | 示例 |
+|------|---------|------|
+| 全局共享 | Store（Redux/Zustand/Jotai） | 用户信息、主题、多页面共享数据 |
+| 页面级 | 页面组件的 state 或 Context | 页面筛选条件、当前 tab |
+| 组件级 | `useState` / `useReducer` | 表单输入、展开/折叠、loading 态 |
+| 瞬时态 | `useRef` | 防抖 timer、上次值快照 |
+
+### 3.2 Store 组织（按库填充）
+<!-- AI-INSERT: 
+  不仅填命名约定，还要从实际代码中提取：
+  - Redux Toolkit → slice 文件命名（xxxSlice.ts / xxx.reducer.ts？）、createAsyncThunk 写法、selector 在组件内还是独立文件
+  - Zustand → store 拆分方式（单文件 vs 多文件）、中间件使用（persist/immer/devtools）
+  - Jotai → atom 命名（xxxAtom？）、派生 atom 模式、Provider 层级
+  标注来源：每个规则后面标上参考了哪个文件
+-->
+{{STATE_MANAGEMENT_DEEP}}
+
+### 3.3 不可变更新
+- [ ] Store 中的对象/数组必须不可变更新
+- [ ] 使用 Immer（Redux Toolkit 内置 / zustand middleware）时，在 `produce` 回调内可直接修改代理
+
+---
+
+## 4. Error Boundary
+
+### 4.1 必须设置的位置
+- [ ] 应用根组件 → 全局兜底 Error Boundary（catch 所有未捕获错误）
+- [ ] 每个独立业务模块 → 模块级 Error Boundary（防止单个模块崩溃拖垮全局）
+- [ ] 关键流程（支付/提交）→ 流程级 Error Boundary
+
+### 4.2 Fallback UI 规范
+- [ ] Fallback 必须显示：错误简要描述 + 重试按钮（调用 `resetErrorBoundary`）
+- [ ] 不得在 Fallback 中暴露敏感信息（token、用户数据、堆栈）
+- [ ] 生产环境 Fallback 不显示完整堆栈，开发环境可显示
+
+---
+
+## 5. Suspense 与懒加载
+
+### 5.1 路由级懒加载
+- [ ] 所有页面组件默认使用 `React.lazy()` 懒加载
+- [ ] 懒加载必须设置 Suspense fallback（骨架屏或 loading spinner）
+
+### 5.2 Suspense 层级
+```
+<App>
+  <ErrorBoundary fallback={GlobalError}>
+    <Suspense fallback={PageSkeleton}>
+      <Routes />
+    </Suspense>
+  </ErrorBoundary>
+</App>
+```
+
+### 5.3 非路由懒加载（按需）
+- [ ] 体积 > 30KB 的非首屏组件 → 考虑 `React.lazy`
+- [ ] 按需加载的组件必须有独立的 Suspense 边界（不共用路由级的）
+
+---
+
+## 6. Ref 使用规范
+
+### 6.1 useRef vs useState
+| 场景 | 使用 | 原因 |
+|------|------|------|
+| 触发 UI 更新的值 | `useState` | state 变更触发渲染 |
+| DOM 元素引用 | `useRef` | 不需要触发渲染 |
+| 跨渲染保持的瞬时值（timer、上次状态快照） | `useRef` | 不需要触发渲染 |
+| 传递给子组件的可变值 | `useRef` + `useImperativeHandle` | 受控的可变引用 |
+
+### 6.2 forwardRef / useImperativeHandle
+- [ ] 仅在封装底层组件（Input、Modal 等）时使用 `forwardRef`
+- [ ] `useImperativeHandle` 暴露的方法必须显式声明类型，不得暴露内部实现细节
+
+---
+
+## 7. Context 使用边界
+
+### 7.1 适合 Context 的数据
+- [ ] 全局主题、语言、时区
+- [ ] 认证用户信息（不变或极少变）
+- [ ] 跨层级透传的配置（如表单的 disabled 状态）
+
+### 7.2 不适合 Context 的数据
+- [ ] 高频变化的状态（每秒更新多次）→ 走状态库
+- [ ] 大对象/大数据集 → 按需拆分成多个 Context，避免整体更新
+- [ ] 仅一两个组件使用的数据 → props 透传
+
+### 7.3 Context 拆分原则
+- [ ] 不相关的状态拆分到独立 Context，防止单个 Context 更新导致大范围重渲染
+- [ ] Provider 的值使用 `useMemo` 包裹（防止每次渲染创建新对象）
+
+---
+
+## 8. StrictMode 下的行为
+
+- [ ] 开发模式下 React.StrictMode 会双重调用 render、effect、state updater —— **这是预期行为，不要试图绕过**
+- [ ] Effect cleanup 必须幂等（因为会被双重触发测试）
+- [ ] 不得在开发模式下根据双重渲染"修复"代码（那不是 Bug）
+
+---
+
+## 9. 性能反模式（禁止）
+
+- [ ] **禁止在渲染中创建内联函数/对象并传给 memo 子组件**
+- [ ] **禁止在 `useEffect` 中直接修改 state 但不加依赖**（导致无限循环）
+- [ ] **禁止在列表渲染中使用 `index` 作为 key**（数据顺序变化会导致渲染错乱）
+- [ ] **禁止在组件内定义另一个组件**（每次渲染都会卸载/重新挂载）
+- [ ] **禁止在条件语句中调用 `useState` 或任何 Hook**
+
+---
+
+## 10. React 版本特定约束
+
+<!-- AI-INSERT: 根据 package.json 中 react 版本填充。
+  React 18：Concurrent 特性、自动批处理、Suspense on server
+  React 19：Server Components、Actions、use() hook、useOptimistic
+  也要标注项目实际在用的 React 特性（不是版本支持什么就写什么） -->
+{{REACT_VERSION_RULES}}
+
+---
+
+## 11. 与外部 Skill 的关系
+
+本项目的 React 开发依赖两层约束：
+
+| 层级 | 来源 | 内容 | 优先级 |
+|------|------|------|--------|
+| **本文件** | SOP 初始化生成 + 项目开发累积 | 项目特定的代码风格、状态管理约定、已知陷阱 | **最高** |
+| **Vercel react-best-practices** | 用户通过 `npx skills add vercel-labs/agent-skills` 安装 | 40+ 性能规则（waterfall/bundle/server/re-render 等） | 第二 |
+| **Vercel composition-patterns** | 同上 | 组件 API 设计模式（消除 boolean props 爆炸） | 第三 |
+
+> - Vercel Skill 未安装 → AI 使用本文件规则 + 通用性能原则，不阻塞开发。
+> - Vercel Skill 已安装 → AI 实现阶段自动加载，在性能优化和组件设计上提供更专业的建议。
+> - 本文件与 Vercel Skill 规则冲突时 → **本文件优先**（项目约定 > 通用最佳实践）。
+
+---
+
+## 12. 已知陷阱（随着项目开发追加）
+
+<!-- 项目开发中遇到的 React 特定坑记录在此。
+  每次解决新坑后追加一条：
+  - 现象（一句话）
+  - 根因
+  - 解法
+  - 日期 + 记录人
+  示例格式：
+  ### 2024-xx-xx：useEffect 中 setState 导致无限循环
+  - 现象：进入页面后 CPU 飙高
+  - 根因：useEffect 中 setState 没有加条件判断
+  - 解法：加入 if 判断避免不必要的 setState
+-->
+{{REACT_TRAPS}}

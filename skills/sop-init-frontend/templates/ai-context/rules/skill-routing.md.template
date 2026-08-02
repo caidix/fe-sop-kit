@@ -1,0 +1,188 @@
+# rules/skill-routing.md — 技能调度规则（AI PM 决策层）
+
+> 本文件是 AI 助手在「澄清」阶段之后、动手实现之前必须读取的决策文件。
+> 它不定义具体规则，而是告诉 AI：当前任务属于什么类型，应当激活哪些 Skill。
+
+## 调度流程
+
+```
+澄清完成
+  │
+  ├─→ 读本文件 → 任务分类
+  │
+  ├─→ 匹配 Skill 集
+  │     ├─ UI Skills（interface-design / ui-ux-pro-max / impeccable / taste-skill）
+  │     ├─ Vercel 官方 Skills（react-best-practices / web-design-guidelines / composition-patterns）
+  │     └─ 框架 Rules（rules/react.md / rules/vue.md + frontend.md）
+  │
+  ├─→ 激活对应 Skill（按阶段接力，未安装则降级）
+  │
+  └─→ 进入实现
+```
+
+---
+
+## 一、任务分类矩阵
+
+| 任务类型 | 特征信号（用户话术中含） | 激活的 Skills | 起始阶段 |
+|---------|----------------------|--------------|---------|
+| **新页面开发** | "新增页面"/"create page"/"新模块" | interface-design → impeccable + Vercel react-best-practices | 设计阶段 |
+| **UI 大改版** | "重构 UI"/"改版"/"redesign"/"重新设计" | interface-design → impeccable → taste-skill / web-design-guidelines | 设计阶段 → Review |
+| **设计稿还原** | Figma 链接/截图/标注/"按设计稿"/"像素级" | impeccable（强制） → taste-skill | 实现阶段 → Review |
+| **标准 UX 组件** | "表格"/"搜索"/"筛选"/"表单"/"分页"/"导航" | ui-ux-pro-max + Vercel react-best-practices | 设计/实现阶段 |
+| **组件库开发** | "封装组件"/"通用组件"/"公共组件" | ui-ux-pro-max + Vercel composition-patterns + 框架 Skill | 实现阶段 |
+| **Vue 路由开发** | "路由"/"router"/"导航守卫" | Vue vue-router-best-practices | 实现阶段 |
+| **Vue 状态管理** | "pinia"/"store"/"状态" | Vue vue-pinia-best-practices + rules/vue.md | 实现阶段 |
+| **Vue Composables** | "组合函数"/"composable"/"useXxx" | Vue create-adaptable-composable + Vue vue-best-practices | 实现阶段 |
+| **Vue 测试** | "测试"/"test"/"单测" | Vue vue-testing-best-practices | 自测阶段 |
+| **动画/动效** | "动画"/"过渡"/"transition"/"animate" | ui-ux-pro-max | 实现阶段 |
+| **纯逻辑/状态** | "状态管理"/"重构逻辑"/"hooks"/"utils" | Vercel react-best-practices（不激活 UI Skill） | 实现阶段 |
+| **性能优化** | "优化性能"/"卡顿"/"慢"/"lighthouse" | Vercel react-best-practices（核心）+ rules/react.md | 实现/Review |
+| **Bug 修复** | "bug"/"修复"/"异常"/"报错" | 不激活额外 Skill | 实现阶段 |
+| **API 对接** | "接口"/"联调"/"api" | Vercel react-best-practices（fetch 模式检查） | 实现阶段 |
+| **工程化/配置** | "webpack"/"vite"/"eslint"/"构建" | 不激活额外 Skill | 实现阶段 |
+| **UI 审查** | "检查 UI"/"审查界面"/"看你界面" | web-design-guidelines / taste-skill | Review 阶段 |
+
+> **Vue 项目**：将上表中的 `Vercel react-best-practices` 替换为 `Vue vue-best-practices`；`Vercel composition-patterns` 和 `web-design-guidelines` 在 Vue 项目中同样可用。
+
+---
+
+## 二、Skill 激活规则
+
+### 2.1 Skill 来源分级
+
+| 级别 | Skill | 安装方式 | 说明 |
+|------|-------|---------|------|
+| **项目 Rules** | `rules/react.md` / `rules/vue.md` / `rules/frontend.md` | SOP 初始化自动生成 | **最高优先级**，项目约定以此为准 |
+| **Vercel 官方** | `react-best-practices` / `web-design-guidelines` / `composition-patterns` | `npx skills add vercel-labs/agent-skills` | 通用最佳实践，由官方维护 |
+| **用户级 UI** | `interface-design` / `ui-ux-pro-max` / `impeccable` / `taste-skill` | 用户自行安装到 `~/.workbuddy/skills/` | UI 专项能力，按需安装 |
+
+> **冲突处理原则**：项目 Rules > Vercel 官方 Skill > 用户级 UI Skill。当项目 `rules/react.md` 已有明确约束时，不因 Skill 的建议而改变。
+
+### 2.2 UI Skill 接力链（设计 → 实现 → Review）
+
+4 个 UI Skill + 1 个 Vercel Skill 按生命周期接力：
+
+```
+[设计阶段]                         [实现阶段]                    [Review 阶段]
+
+interface-design ──────────→  impeccable ────────────→  taste-skill
+（信息架构/布局设计）           （像素级还原）                （审美质检）
+
+ui-ux-pro-max ─────────────→  ui-ux-pro-max
+（UX 模式推荐）                （交互细节校验）
+
+                                                          web-design-guidelines
+                                                          （系统化 UI 审计，100+ 规则）
+```
+
+### 2.3 优先级与冲突处理
+
+| 规则 | 说明 |
+|------|------|
+| **impeccable > ui-ux-pro-max** | 有设计稿时 impeccable 优先；无设计稿时 ui-ux-pro-max 提供模式参考 |
+| **web-design-guidelines > taste-skill** | web-design-guidelines 更系统化（结构化规则），taste-skill 更偏审美感觉，两者可互补 |
+| **interface-design 必须先确认** | interface-design 的输出必须先和用户确认，再进入实现 |
+| **taste-skill 仅 Review 阶段** | 不在实现阶段激活 |
+| **Vercel react-best-practices 在 React 项目全程激活** | 该 Skill 在代码编写和 Review 阶段均生效 |
+| **Vercel composition-patterns 在组件设计时激活** | 写组件 API 时自动检查 boolean props 爆炸等问题 |
+
+### 2.4 组合约束
+
+| 可以同时激活 | 禁止同时激活 |
+|------------|------------|
+| interface-design + ui-ux-pro-max | interface-design + impeccable（设计未确认不进实现） |
+| impeccable + Vercel react-best-practices | taste-skill 在实现阶段 |
+| ui-ux-pro-max + Vercel composition-patterns | web-design-guidelines 在实现阶段（仅 Review 用） |
+| Vercel react-best-practices + Vercel composition-patterns | — |
+
+---
+
+## 三、Skill 能力边界
+
+### 3.1 Vercel 官方 Skills（React 生态）
+
+| Skill | 能力范围 | 规则数量 | 安装命令 |
+|-------|---------|---------|---------|
+| **react-best-practices** | 性能优化（waterfall/bundle/server/re-render/JS），按影响排序 | 40+ 规则 / 8 类 | `npx skills add vercel-labs/agent-skills` |
+| **web-design-guidelines** | 系统化 UI 审查（a11y/表单/动画/暗黑模式/i18n/图片/触控） | 100+ 规则 / 11 类 | 同上（合集安装） |
+| **composition-patterns** | 组件 API 设计（消除 boolean props、复合组件、状态提升） | 组合模式集 | 同上（合集安装） |
+
+### 3.2 Vue 官方 Skills（Vue 生态）
+
+| Skill | 能力范围 | 安装命令 |
+|-------|---------|---------|
+| **vue-best-practices** | Vue 3 + Composition API + TypeScript，最佳实践/常见陷阱/SSR/性能 | `npx skills add vuejs-ai/skills` |
+| **vue-router-best-practices** | Vue Router 4 导航守卫/路由参数/路由-组件生命周期 | 同上（合集安装） |
+| **vue-pinia-best-practices** | Pinia 状态管理：Store 设计/响应式/状态模式 | 同上（合集安装） |
+| **create-adaptable-composable** | 可复用组合函数模式：MaybeRef/MaybeRefOrGetter 输入模式 | 同上（合集安装） |
+| **vue-testing-best-practices** | 组件/E2E 测试：Vitest/Vue Test Utils/Playwright | 同上（合集安装） |
+| **vue-jsx-best-practices** | Vue 中 JSX 语法差异（vs React JSX） | 同上（合集安装） |
+| **vue-debug-guides** | Vue 3 调试：运行时错误/警告/异步错误/hydration 问题 | 同上（合集安装） |
+| **vue-options-api-best-practices** | Options API 模式：`this` 上下文/生命周期/TypeScript（存量项目） | 同上（合集安装） |
+
+### 3.3 用户级 UI Skills（需自行安装）
+
+| Skill | 能力范围 | 不负责 | 安装来源 |
+|-------|---------|-------|---------|
+| **interface-design** | 组件布局设计、信息架构、页面结构、响应式策略 | 像素级还原、动画细节 | 用户自行安装（用户级） |
+| **ui-ux-pro-max** | 标准 UX 模式（表单/列表/搜索/导航/反馈） | 定制化视觉风格 | 用户自行安装（用户级） |
+| **impeccable** | 设计稿 → 代码的高保真实现、CSS 精确度 | UX 模式推荐、信息架构 | 用户自行安装（用户级） |
+| **taste-skill** | 视觉一致性审查、间距/字体/颜色、审美打分 | 功能正确性、性能 | 用户自行安装（用户级） |
+
+### 3.4 降级策略（Skill 未安装时）
+
+| 缺失 Skill | 降级行为 |
+|-----------|---------|
+| Vercel react-best-practices | AI 使用 `rules/react.md` + 通用性能原则，不阻塞开发 |
+| Vercel web-design-guidelines | 依赖 taste-skill（如有）或 review.md「UI 状态完整度」清单 |
+| Vercel composition-patterns | AI 使用通用组件设计原则，无模式检查 |
+| Vue vue-best-practices | AI 使用 `rules/vue.md` + Vue 3 官方文档知识，不阻塞开发 |
+| Vue vue-router-best-practices | AI 使用 Vue Router 官方文档知识 |
+| Vue vue-pinia-best-practices | AI 使用 `rules/vue.md` Pinia 章节 + Pinia 官方文档 |
+| Vue create-adaptable-composable | AI 使用 `rules/vue.md` Composables 规范 |
+| Vue vue-testing-best-practices | AI 使用 `rules/testing.md` 基线 + Vitest/Vue Test Utils 通用知识 |
+| interface-design | AI 用通用设计原则给出布局建议，人工确认 |
+| ui-ux-pro-max | AI 从组件库文档提取标准用法 |
+| impeccable | AI 对照设计稿（如有）手动还原 |
+| taste-skill | 依赖 review.md 的「UI 状态完整度」清单做人工检查 |
+
+---
+
+## 四、框架 Skill 激活表
+
+| 检测到的框架 | Skill 链 | 项目 Rules |
+|------------|---------|-----------|
+| React（任意版本） | Vercel react-best-practices + Vercel composition-patterns | `rules/react.md` + `rules/frontend.md` |
+| Vue 3 | Vue vue-best-practices + vue-router-best-practices（如有路由） + vue-pinia-best-practices（如有 Pinia） + create-adaptable-composable（写组合函数时） | `rules/vue.md` + `rules/frontend.md` |
+| Next.js | Vercel react-best-practices + Vercel composition-patterns + Next.js 特定规则 | `rules/react.md` + `rules/frontend.md` |
+| Taro（React） | Vercel react-best-practices + 多端约束 | `rules/react.md` + `rules/platform.md` |
+| Taro（Vue） | Vue vue-best-practices + 多端约束 | `rules/vue.md` + `rules/platform.md` |
+
+> **关键原则**：官方 Skill 提供通用最佳实践，但项目 `rules/react.md`/`rules/vue.md` 中提取的项目代码风格（第 0 节）**始终优先**。
+
+---
+
+## 五、阶段触发对照表
+
+| 生命周期阶段 | 读取本文件？ | 后续动作 |
+|------------|-----------|---------|
+| 澄清 | 否 | 先确认任务范围 |
+| **任务分类** | **是（首次读取）** | 匹配任务类型 → 激活对应 Skill 集 |
+| UI 设计（如需） | 否 | interface-design / ui-ux-pro-max 生效 |
+| Spec（如需） | 否 | 按 TEMPLATE.md 建目录 |
+| 实现 | 否 | impeccable + 框架 Skill 并行生效 |
+| 自测 | 否 | testing.md |
+| Review | 是（二次读取） | taste-skill 或 web-design-guidelines 激活（如有 UI 变更） |
+| 复盘 | 否 | 盲点留存 |
+
+---
+
+## 六、`ui-skill-router` 项目 Skill
+
+本 SOP 自带 `ui-skill-router` 调度器，在 SOP 初始化时安装到用户级（`~/.workbuddy/skills/`），随工具全局可用。其作用是：
+
+1. **在「任务分类」阶段**：读取本文件，根据任务特征信号决定激活哪些 Skill（含 Vercel 官方 + 用户级 UI）
+2. **在 Skill 未安装时**：执行降级策略
+3. **在阶段切换时**：确保 Skill 按生命周期接力（不跳阶段）
+4. **在 Review 阶段**：决定用 web-design-guidelines 做系统化审计还是 taste-skill 做审美审查

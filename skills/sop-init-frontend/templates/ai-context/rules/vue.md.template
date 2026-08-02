@@ -1,0 +1,294 @@
+# rules/vue.md — Vue 框架专属规则
+
+> **本文件的定位**：项目的 Vue 代码「宪法」。它覆盖 Vue 特有的响应式系统、组合式 API、组件设计约束，以项目实际代码风格为最高优先级。
+>
+> **读取顺序**：AI 先读本文件（项目约定）、再读外部 Skill。冲突时本文件优先。
+
+---
+style_source: {{STYLE_SOURCE}}（{{STYLE_SOURCE_DETAIL}}）
+
+---
+
+## 0. 项目 Vue 代码风格（从真实代码提取，本文件最高优先级）
+
+> 以下规则从本项目已存在的代码中**扫描提取**。新代码必须与以下风格一致。
+> 若扫描到的模式与下方通用规则冲突，以扫描结果为准。
+
+<!-- 
+  扫描前：判断样本量
+  - 样本充足（≥ 3 个组件文件，代码量 > 50 行）→ 正常提取并填入下方
+  - 样本不足（< 3 个文件 或 代码量极少）→ 询问用户：
+    "项目代码较少（仅 N 个 Vue 组件），是否保留现有风格？
+     保留 → 以现有写法为准，我会逐一提取；
+     不保留 → 采用 Vue 3 官方最佳实践作为默认风格。"
+  - 用户选择「不保留」→ 下方填入 Vue 3 官方推荐写法，并标注「（官方推荐，非项目代码提取）」
+  - 用户选择「保留」→ 如实提取，能提取多少填多少
+-->
+
+### 0.1 组件声明方式
+<!-- AI-INSERT: 从项目 src/ 扫描以下模式，标注来源文件：
+  - 是否使用 <script setup> 语法？是 → 标注版本要求（Vue 3.2+）；否 → 标注使用的替代语法
+  - 组件文件扩展名（.vue 确定，但内部 script lang 是 ts 还是 js？）
+  - defineProps / defineEmits 的声明方式（TypeScript 泛型 vs 运行时声明）
+  - defineExpose 的使用频率（很少用 → 不强制；频繁用 → 说明原因）
+-->
+{{VUE_COMPONENT_STYLE}}
+
+### 0.2 文件组织方式
+<!-- AI-INSERT: 扫描组件文件组织模式：
+  - 每个组件独立文件夹（ComponentName/index.vue）？还是平铺？
+  - Composables 放哪里？（src/composables/ / src/hooks/ / src/use/）
+  - Store 文件组织（src/stores/ 按模块拆分？单文件？）
+  - 样式文件放哪里？（同目录 .scss / <style scoped> 内联 / 独立 styles/ 目录）
+-->
+{{VUE_FILE_ORGANIZATION}}
+
+### 0.3 导出与导入约定
+<!-- AI-INSERT: 从代码中提取：
+  - Composables 用 default export 还是 named export？
+  - 路径别名（@/ / ~/ / src/）
+  - 组件导入时的命名风格（PascalCase 一致？还是 mixed？）
+-->
+{{VUE_EXPORT_IMPORT}}
+
+### 0.4 类型标注偏好
+<!-- AI-INSERT: TypeScript 相关的项目偏好：
+  - ref 类型标注方式（ref<Type>() / ref<Type>(initialValue) / 不标注依赖推导）
+  - reactive 类型标注方式（reactive<Type>({}) / 依赖推导）
+  - Props 类型声明方式（defineProps<Type>() 泛型 vs 运行时声明 + PropType）
+  - Emits 类型声明方式（defineEmits<{}>() 泛型 vs 运行时声明）
+  - 是否使用 any / 是否运行 eslint-disable
+-->
+{{VUE_TYPE_PREFERENCES}}
+
+### 0.5 模板风格
+<!-- AI-INSERT: 从 .vue 文件的 <template> 部分提取：
+  - 指令使用风格（v-if/v-show 选择倾向？）
+  - 组件在模板中的命名（PascalCase vs kebab-case）
+  - 事件处理命名（@click="handleClick" / @click="onClick" / @click="click"）
+  - 样式作用域（全部 scoped？还是部分全局？）
+-->
+{{VUE_TEMPLATE_STYLE}}
+
+### 0.6 用户声明的额外约束
+<!-- AI-INSERT: 若用户在 SOP 初始化或「更新 SOP」时口述了额外的 Vue 代码约束，AI 识别后逐个填入此节。
+  示例：
+  - "所有 API 调用必须放在 src/api/ 目录下，按模块拆分"
+  - "禁止在 <template> 中写任何逻辑判断，全部提取为 computed"
+  - "Pinia store 必须用 setup 语法，禁止用 options 语法"
+  - "所有 emit 事件名必须以 on 开头（如 onClose / onSubmit）"
+  格式：每条一个 checkbox，注明来源（用户口述 / 团队规范 / 代码审查约定）
+-->
+{{VUE_USER_CONSTRAINTS}}
+
+### 0.7 扫描自检（初始化时 AI 必须做）
+生成本文件时，AI 必须：
+1. 先判断样本量是否充足（≥ 3 个 .vue 文件）
+2. 样本不足 → 询问用户「保留现有风格」还是「采用官方推荐」
+3. 样本充足 → 在 `src/` 中采样 5-10 个 .vue 文件，提取上述模式
+4. 将提取结果填入上方对应的 `{{占位符}}`
+5. 每个占位符下方标注**来源文件路径**
+6. 若项目代码风格不统一，标注主流写法（>70%）作为标准，列出例外文件
+7. 主动询问用户：**「你是否有额外的代码约束想加入？例如命名规则、目录约定、禁止事项等。口述即可，我会识别并写入。」**
+8. 将用户口述的约束填入第 0.6 节
+
+---
+## 1. Composition API 规范
+
+### 1.1 组合函数（Composables）
+- [ ] 所有可复用逻辑提取为组合函数（以 `use` 开头）
+- [ ] 组合函数必须返回 `ref` / `reactive` / `computed` 等响应式引用，不得返回普通值
+- [ ] 组合函数内的副作用（watch、事件监听、定时器）必须在 `onUnmounted` 中清理
+
+```ts
+// ✅ 正确
+export function useCounter(initial = 0) {
+  const count = ref(initial);
+  const double = computed(() => count.value * 2);
+  const increment = () => count.value++;
+  return { count: readonly(count), double, increment };
+}
+```
+
+### 1.2 setup 规范
+- [ ] 使用 `<script setup>` 语法（Vue 3.2+ 默认推荐）
+- [ ] `defineProps` 和 `defineEmits` 使用 TypeScript 类型声明
+- [ ] `defineExpose` 仅在明确需要父组件访问时使用，保持最小暴露
+
+---
+
+## 2. 响应式系统约定
+
+### 2.1 ref vs reactive 选择
+
+| 类型 | 使用 `ref` | 使用 `reactive` |
+|------|----------|---------------|
+| 基本类型（string/number/boolean） | ✅ | ❌ 不支持 |
+| 简单对象（表单数据） | 推荐 | 可用 |
+| 数组 | 推荐 `.value` 访问 | 可用，注意解构和赋值 |
+| 需解构/展开的数据 | ✅ | ❌ 解构丢失响应式 |
+| 需替换整个对象 | ✅ | ❌ 替换丢失引用 |
+
+- [ ] **默认优先使用 `ref`**（避免 reactive 的解构陷阱和替换陷阱）
+- [ ] 仅在明确不需要解构/替换的复杂嵌套对象时使用 `reactive`
+
+### 2.2 响应式丢失防范
+- [ ] **禁止解构 `reactive` 对象**到普通变量（`const { name } = reactiveObj` 丢失响应式）
+- [ ] 如需解构，使用 `toRefs`：`const { name } = toRefs(reactiveObj)`
+- [ ] `props` 对象可以安全解构（Vue 3.5+ 编译器自动优化，3.4 以下需手动 `toRefs`）
+
+### 2.3 watch vs watchEffect
+
+| 场景 | 使用 |
+|------|------|
+| 需要访问旧值/new 值对比 | `watch(source, (newVal, oldVal) => {})` |
+| 仅在依赖变化时执行副作用 | `watch` |
+| 立即执行 + 自动追踪依赖 | `watchEffect` |
+| 需要手动停止的条件性监听 | `watch` + 返回值调用 |
+
+- [ ] `watchEffect` 内不得包含异步操作（因为它无法追踪异步回调内的依赖）
+- [ ] 避免在 `watch`/`watchEffect` 中直接修改自身监听的源（导致无限循环）
+
+---
+
+## 3. 组件设计规范
+
+### 3.1 Props 设计
+- [ ] Props 使用 TypeScript interface 声明类型
+- [ ] 非必填 props 提供 `default` 值（或在 `withDefaults` 中声明）
+- [ ] Boolean props 默认值应为 `false`，不传入即视为 `false`
+- [ ] 复杂对象 props 考虑是否应拆分为多个原子 props
+
+### 3.2 Emits 设计
+- [ ] 所有 emit 事件在 `defineEmits` 中声明类型
+- [ ] 事件名使用 kebab-case（模板中）和 camelCase（`<script setup>` 中）
+- [ ] 向上传递数据而非函数引用（数据流单向原则）
+
+### 3.3 插槽设计
+- [ ] 具名插槽有明确语义（`header` / `footer` / `actions` 而非 `slot1` / `slot2`）
+- [ ] 默认插槽提供合理的 fallback 内容
+- [ ] 作用域插槽暴露的数据通过 TypeScript 声明类型
+
+### 3.4 Teleport / 端口组件
+- [ ] Modal / Drawer / Toast 等全局组件使用 `<Teleport to="body">`
+- [ ] Teleport 内容必须在 `onUnmounted` 时清理 DOM
+
+---
+
+## 4. 性能优化
+
+### 4.1 渲染优化
+- [ ] 大列表（> 100 项）使用虚拟滚动（`vue-virtual-scroller` 或自建）
+- [ ] 静态内容使用 `v-once` 跳过更新
+- [ ] 大组件树中不需要响应式的数据使用 `shallowRef` / `shallowReactive`
+- [ ] 计算属性（`computed`）的派生计算不得有副作用
+
+### 4.2 组件懒加载
+- [ ] 路由级组件使用 `defineAsyncComponent` 或动态 `import()` 懒加载
+- [ ] 条件渲染的大组件（`v-if` 控制的富文本编辑器等）使用异步组件
+
+### 4.3 KeepAlive
+- [ ] 需要保持状态的页面/组件（如多 tab 切换）使用 `<KeepAlive>`
+- [ ] KeepAlive 的 `include`/`exclude` 使用组件 `name` 选项匹配
+- [ ] 在 `onActivated` / `onDeactivated` 中处理激活/失活逻辑
+
+---
+
+## 5. 状态管理（Pinia 约定）
+
+<!-- AI-INSERT: 若项目使用 Pinia，从实际代码中提取：
+  - Store 文件命名（xxxStore.ts？）
+  - 使用 Composition 风格还是 Options 风格？
+  - 实际使用的中间件（persist/immer/devtools？）
+  标注来源文件。 -->
+{{VUE_STORE_CONVENTIONS}}
+
+### 5.1 Store 组织
+- [ ] 按业务域拆分 Store（`useUserStore`、`useOrderStore`），而非一个巨型 Store
+- [ ] Store 使用 Composition API 风格（`defineStore` 的 setup 函数），与组件风格统一
+
+### 5.2 State 设计
+- [ ] State 使用 `ref` 声明（Composition API 风格）
+- [ ] 不需要响应式的内部数据放闭包变量，不暴露到 state
+
+### 5.3 Getter 设计
+- [ ] 派生状态使用 `computed`（而非直接定义方法）
+- [ ] Getter 不得有副作用
+
+### 5.4 Action 设计
+- [ ] Action 可以是同步或异步，异步使用 `async/await`
+- [ ] Action 内的错误需 try/catch 或通过返回值传递（不静默吞掉）
+
+### 5.5 Store 使用
+- [ ] 组件中解构 Store 的 state 和 getter 必须用 `storeToRefs`
+- [ ] Action 可以直接从 Store 解构（不需要 `storeToRefs`）
+
+---
+
+## 6. 路由（Vue Router）约定
+
+- [ ] 路由参数（params/query）通过 `useRoute` 获取，内部为 `ref`
+- [ ] 编程式导航使用 `useRouter`，不得直接操作 `window.location`
+- [ ] 导航守卫（`beforeEach`）内的异步操作必须有错误处理
+- [ ] 路由 meta 字段有统一约定，不在组件内对 meta 做类型断言
+
+---
+
+## 7. 模板规范
+
+### 7.1 指令使用
+- [ ] `v-if` vs `v-show`：频繁切换用 `v-show`，条件不常变用 `v-if`
+- [ ] `v-if` 和 `v-for` **不得同时使用在同一元素上**（Vue 3 中 `v-if` 优先级高于 `v-for`）
+- [ ] 需要使用 `v-if` + `v-for` 时，用一个计算属性先过滤，或用 `<template>` 包裹 `v-for` 在外层
+
+### 7.2 组件通信
+- [ ] 父子通信：props down / events up
+- [ ] 跨层级通信：provide / inject 或 Pinia Store
+- [ ] 兄弟组件通信：通过共同父组件或 Pinia Store，不使用 event bus
+
+### 7.3 样式作用域
+- [ ] 组件样式默认使用 `<style scoped>`
+- [ ] 需要穿透子组件时使用 `:deep()`（而非废弃的 `>>>` 或 `/deep/`）
+- [ ] 全局样式放在 `src/styles/` 目录，在 `main.ts` 中引入
+
+---
+
+## 8. 与外部约束的关系
+
+本项目的 Vue 开发依赖两层约束：
+
+| 层级 | 来源 | 内容 | 优先级 |
+|------|------|------|--------|
+| **本文件第 0 节** | SOP 初始化扫描 + 用户口述 + 项目开发累积 | 项目特定的代码风格、组织方式、额外约束 | **最高** |
+| **本文件后续节** | SOB 模板骨架（Vue 3 官方推荐） | 框架铁律（响应式/Composables/组件设计等） | 第二 |
+| **用户声明约束** | 用户口述写入 0.6 节 | 项目专属的命名规则、目录约定、禁止事项 | **最高**（覆盖冲突的通用规则） |
+
+---
+
+## 9. Vue 版本特定约束
+
+<!-- AI-INSERT: 根据 package.json 中 vue 版本填充。3.4+ 有 defineModel 稳定版、3.5+ props 解构响应式优化等 -->
+{{VUE_VERSION_RULES}}
+
+---
+
+## 10. 禁止事项
+
+- [ ] **禁止在 `computed` 中执行副作用**（API 调用、DOM 操作、修改其他 state）
+- [ ] **禁止在 `watch`/`watchEffect` 中直接修改同步触发的 source**（导致无限循环）
+- [ ] **禁止在模板中使用复杂表达式**（三元、多步计算 → 提取为 `computed`）
+- [ ] **禁止在 `onBeforeMount`/`onMounted` 中进行异步数据请求时不处理 loading/error 态**
+- [ ] **禁止直接修改 props**（单向数据流）
+- [ ] **禁止使用 Options API 和 Composition API 混写在同一个组件中**（选一种并坚持）
+
+---
+
+## 11. 已知陷阱（随着项目开发追加）
+
+<!-- 项目开发中遇到的 Vue 特定坑记录在此。
+  每次解决新坑后追加一条：
+  - 现象（一句话）
+  - 根因
+  - 解法
+  - 日期 + 记录人 -->
+{{VUE_TRAPS}}

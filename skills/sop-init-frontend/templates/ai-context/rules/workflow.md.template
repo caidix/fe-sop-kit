@@ -16,7 +16,21 @@
 2. **是什么功能？** （一句话说清业务目标）
 3. （若新增）**归属哪个业务域？**
 
-确认后按下表决定落点：
+确认后进入**任务分类阶段**（读取 `rules/skill-routing.md`），决定后续激活的 Skill 集。
+
+### 任务分类（硬门槛之后，实现之前）
+AI 必须在此阶段判定任务类型并激活对应 Skill：
+- **UI 密集任务**（新页面/改版/设计稿还原）→ 激活 UI Skill 调度（见 `skill-routing.md`）
+- **逻辑密集任务**（状态管理/Hooks/工具函数）→ 仅激活框架 Skill
+- **Bug 修复 / API 对接** → 不激活额外 Skill
+
+分类结果必须**告知用户**，获得确认后再进入下一阶段。
+
+### UI/UX 设计（UI 任务强制）
+UI 密集任务在进入实现前，必须走 UI 设计阶段：
+- 有设计稿 → 激活 `impeccable` skill（如已安装）
+- 无设计稿 → AI 给出布局/交互建议，用户确认后进入实现
+- 设计结果必须先确认，**不得跳过确认直接实现**
 
 ### 落点决策树
 <!-- AI-INSERT: 根据项目实际情况（有无主包/分包/_inject等概念）定制此表 -->
@@ -31,12 +45,15 @@
 
 ### 阶段 A：实现
 1. 按 `frontend.md` 风格写代码
-2. 每完成一个 task，自测通过后再勾选（见 `testing.md`）
+2. 按框架规则（`react.md` 或 `vue.md`）写框架特定代码
+3. 框架 Skill（Vercel 官方 react-best-practices / Vue 官方 vue-best-practices，如已安装）实时约束
+4. 每完成一个 task，自测通过后再勾选（见 `testing.md`）
 
 ### 阶段 B：Review（提交前必检）
 1. 对照 `rules/review.md` 五轴清单逐项自查
-2. 走 specs 的任务 → 补填 `acceptance.md` 验证记录
-3. 不走 specs 的普通任务 → PR 描述中贴出验证命令与结果
+2. 若有 UI 变更 → 激活 web-design-guidelines（系统化审计）或 taste-skill（审美审查），如已安装
+3. 走 specs 的任务 → 补填 `acceptance.md` 验证记录
+4. 不走 specs 的普通任务 → PR 描述中贴出验证命令与结果
 
 ### 阶段 C：提交
 - **Commit 格式**：`type(scope): description`（遵循 [Conventional Commits](https://www.conventionalcommits.org/)）
@@ -58,7 +75,10 @@
 ## 任务闭环速查
 | 阶段 | 动作 | 产出 |
 |------|------|------|
-| A 实现 | 写代码 | 可运行的功能 |
-| B Review | 五轴检查 + 填验证记录 | `review.md` 全部打勾 / spec 的 `acceptance` 填完 |
+| 澄清 | 确认新增/修改 + 功能 + 落点 | 任务描述 |
+| 任务分类 | 读 `skill-routing.md` → 激活 Skill | Skill 激活计划 |
+| UI 设计（如需） | interface-design / ui-ux-pro-max | 布局方案 / UX 模式 |
+| A 实现 | 写代码（frontend.md + 框架 rules + 框架 Skill） | 可运行的功能 |
+| B Review | 五轴检查 + UI 审查 + 填验证记录 | `review.md` 全部打勾 / spec 的 `acceptance` 填完 |
 | C 提交 | conventional commit + PR 证据 | 干净的 git history |
-| D 复盘 | 问一句"有坑吗" | 更新 `rules/` / `demo/` 或 skill |
+| D 复盘 | 问一句"有坑吗" | 更新 `rules/`（含 react.md/vue.md）/ `demo/` 或 skill |
