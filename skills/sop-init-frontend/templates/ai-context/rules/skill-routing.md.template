@@ -8,11 +8,16 @@
 ```
 澄清完成
   │
-  ├─→ 读本文件 → 任务分类
+  ├─→ 复杂度判定（L0-L3，见 AGENTS.md）
+  │     ├─ L0 → 跳过本文件，直接执行
+  │     ├─ L1 → 跳过本文件，直接实现
+  │     ├─ L2 → 读本文件 → 任务分类
+  │     └─ L3 → 读本文件 → 任务分类 → 进入规划模式（planning.md）
   │
   ├─→ 匹配 Skill 集
   │     ├─ UI Skills（interface-design / ui-ux-pro-max / impeccable / taste-skill）
   │     ├─ Vercel 官方 Skills（react-best-practices / web-design-guidelines / composition-patterns）
+  │     ├─ Vue 官方 Skills（vue-best-practices / vue-router-best-practices / vue-pinia-best-practices 等）
   │     └─ 框架 Rules（rules/react.md / rules/vue.md + frontend.md）
   │
   ├─→ 激活对应 Skill（按阶段接力，未安装则降级）
@@ -26,6 +31,7 @@
 
 | 任务类型 | 特征信号（用户话术中含） | 激活的 Skills | 起始阶段 |
 |---------|----------------------|--------------|---------|
+| **复杂需求规划** ★ | "复杂"/"大型"/"需要规划"/"设计方案"/L3 判定 + 新功能/架构变更/重构 | **planning.md 四阶段流程**（不激活 UI Skill） → 方案确认后按结果激活对应 Skill | 规划阶段 |
 | **新页面开发** | "新增页面"/"create page"/"新模块" | interface-design → impeccable + Vercel react-best-practices | 设计阶段 |
 | **UI 大改版** | "重构 UI"/"改版"/"redesign"/"重新设计" | interface-design → impeccable → taste-skill / web-design-guidelines | 设计阶段 → Review |
 | **设计稿还原** | Figma 链接/截图/标注/"按设计稿"/"像素级" | impeccable（强制） → taste-skill | 实现阶段 → Review |
@@ -165,16 +171,18 @@ ui-ux-pro-max ─────────────→  ui-ux-pro-max
 
 ## 五、阶段触发对照表
 
-| 生命周期阶段 | 读取本文件？ | 后续动作 |
-|------------|-----------|---------|
-| 澄清 | 否 | 先确认任务范围 |
-| **任务分类** | **是（首次读取）** | 匹配任务类型 → 激活对应 Skill 集 |
-| UI 设计（如需） | 否 | interface-design / ui-ux-pro-max 生效 |
-| Spec（如需） | 否 | 按 TEMPLATE.md 建目录 |
-| 实现 | 否 | impeccable + 框架 Skill 并行生效 |
-| 自测 | 否 | testing.md |
-| Review | 是（二次读取） | taste-skill 或 web-design-guidelines 激活（如有 UI 变更） |
-| 复盘 | 否 | 盲点留存 |
+| 生命周期阶段 | 适用级别 | 读取本文件？ | 后续动作 |
+|------------|---------|-----------|---------|
+| 复杂度预检 | L0-L3 | 否 | AGENTS.md 判定级别 |
+| 澄清 | L1-L3 | 否 | 先确认任务范围 |
+| **任务分类** | L2-L3 | **是（首次读取）** | 匹配任务类型 → 激活对应 Skill 集 |
+| **规划** ★ | L3 | 否 | `planning.md` 四阶段：理解→设计→拆解→自审 → 产出 specs/ |
+| UI 设计 | L2（UI 任务） | 否 | interface-design / ui-ux-pro-max 生效 |
+| Spec | L2（常规较大） | 否 | 按 TEMPLATE.md 建目录 |
+| 实现 | L1-L3 | 否 | impeccable + 框架 Skill 并行生效 |
+| 自测 | L1-L3 | 否 | testing.md |
+| Review | L1-L3 | 是（二次读取） | taste-skill 或 web-design-guidelines 激活（如有 UI 变更） |
+| 复盘 | L1-L3 | 否 | 盲点留存 |
 
 ---
 

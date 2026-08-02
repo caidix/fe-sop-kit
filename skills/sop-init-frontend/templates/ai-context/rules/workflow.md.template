@@ -10,6 +10,19 @@
 ## 铁律 3：代码风格
 - 新代码沿用 {{STYLE_RULE}}（见 `frontend.md`）。
 
+## 复杂度预检（每次任务第一步）★
+
+参见 `AGENTS.md`「复杂度分级」表。AI 收到任务后**自动判定 L0-L3 级别**并告知用户。
+
+- **L0 极简**：直接执行，不加载本文件后续流程
+- **L1 简单**：跳过任务分类/UI 设计/planning 阶段，直接进入实现
+- **L2 常规**：走完整流程（澄清 → 分类 → 实现 → Review → 提交 → 复盘）
+- **L3 复杂**：走完整流程 + **规划模式**（澄清 → 分类 → **规划四阶段** → 实现 → Review → 提交 → 复盘）
+
+> 用户可随时纠正 AI 的判定级别。
+
+---
+
 ## 铁律 4：先澄清再开发（硬门槛）
 接到任何开发任务，**动手前必须向用户确认**：
 1. **新增还是修改？**
@@ -26,6 +39,24 @@ AI 必须在此阶段判定任务类型并激活对应 Skill：
 
 分类结果必须**告知用户**，获得确认后再进入下一阶段。
 
+### 复杂任务规划（L3 任务强制）★
+
+当任务被判定为 L3 复杂级别时，**跳过 UI/UX 设计阶段**，直接进入 `rules/planning.md` 所描述的四阶段规划：
+
+```
+理解需求（Socratic 提问）
+  → 方案设计（2-3 方案对比 + 分段展示）
+    → 任务拆解（bite-sized 2-5 min tasks）
+      → 自审（placeholder 扫描 + 一致性检查）
+        → 用户终审
+          → 写入 specs/<slug>/
+            → 开始实现
+```
+
+**硬门槛**：方案被用户确认前，**不得写任何实现代码**。
+
+> L3 任务在规划阶段产出 `specs/<slug>/` 四件套。实现阶段直接按 `tasks.md` 中的清单逐项执行。
+
 ### UI/UX 设计（UI 任务强制）
 UI 密集任务在进入实现前，必须走 UI 设计阶段：
 - 有设计稿 → 激活 `impeccable` skill（如已安装）
@@ -36,8 +67,11 @@ UI 密集任务在进入实现前，必须走 UI 设计阶段：
 <!-- AI-INSERT: 根据项目实际情况（有无主包/分包/_inject等概念）定制此表 -->
 {{LANDING_DECISION_TREE}}
 
-## 大型 / 高风险任务 → 走 specs
-满足任一即开 `specs/` 四件套（`proposal` / `design` / `tasks` / `acceptance`）：
+## 大型 / 高风险任务 → 走规划模式 或 specs
+
+**L3 复杂任务** → 走 `rules/planning.md` 四阶段规划流程，产物写入 `specs/<slug>/`。
+
+**L2 常规但较大的任务**（满足任一即开 `specs/` 四件套：`proposal` / `design` / `tasks` / `acceptance`）：
 <!-- AI-INSERT: 项目特定的大/高风险判据 -->
 {{HIGH_RISK_CRITERIA}}
 
@@ -73,12 +107,14 @@ UI 密集任务在进入实现前，必须走 UI 设计阶段：
 ---
 
 ## 任务闭环速查
-| 阶段 | 动作 | 产出 |
-|------|------|------|
-| 澄清 | 确认新增/修改 + 功能 + 落点 | 任务描述 |
-| 任务分类 | 读 `skill-routing.md` → 激活 Skill | Skill 激活计划 |
-| UI 设计（如需） | interface-design / ui-ux-pro-max | 布局方案 / UX 模式 |
-| A 实现 | 写代码（frontend.md + 框架 rules + 框架 Skill） | 可运行的功能 |
-| B Review | 五轴检查 + UI 审查 + 填验证记录 | `review.md` 全部打勾 / spec 的 `acceptance` 填完 |
-| C 提交 | conventional commit + PR 证据 | 干净的 git history |
-| D 复盘 | 问一句"有坑吗" | 更新 `rules/`（含 react.md/vue.md）/ `demo/` 或 skill |
+| 阶段 | 适用级别 | 动作 | 产出 |
+|------|---------|------|------|
+| 复杂度预检 ★ | L0-L3 | 判定级别并告知用户 | 级别标签（L0/L1/L2/L3） |
+| 澄清 | L1-L3 | 确认新增/修改 + 功能 + 落点 | 任务描述 |
+| 任务分类 | L2-L3 | 读 `skill-routing.md` → 激活 Skill | Skill 激活计划 |
+| 规划 ★ | L3 | 四阶段：理解→设计→拆解→自审（`planning.md`） | `specs/<slug>/` 四件套 |
+| UI 设计 | L2（UI 任务） | interface-design / ui-ux-pro-max | 布局方案 / UX 模式 |
+| A 实现 | L1-L3 | 写代码（frontend.md + 框架 rules + 框架 Skill） | 可运行的功能 |
+| B Review | L1-L3 | 五轴检查 + UI 审查 + 填验证记录 | `review.md` 全部打勾 / spec 的 `acceptance` 填完 |
+| C 提交 | L1-L3 | conventional commit + PR 证据 | 干净的 git history |
+| D 复盘 | L1-L3 | 问一句"有坑吗" | 更新 `rules/` / `demo/` 或 skill |

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# yh-sop-fe-kit 互动式安装脚本  v3.2
+# yh-sop-fe-kit 互动式安装脚本  v3.3
 #
 # 自有 Skill（本仓库维护，始终安装）：
 #   - sop-init-frontend  — 提供「初始化 SOP」触发词
@@ -65,7 +65,7 @@ install_to() {
 interactive_choose() {
   echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "  yh-sop-fe-kit v3.2 — Skill 安装"
+  echo "  yh-sop-fe-kit v3.3 — Skill 安装"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo ""
   echo "  自有 Skill（始终安装）："

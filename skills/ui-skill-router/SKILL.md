@@ -40,10 +40,9 @@ agent_created: true
   │     ├─ 命中「纯逻辑/Bug」→ 仅激活 Vercel react-best-practices（如已安装）
   │     └─ 未命中 → 按默认规则处理
   │
-  ├─→ 4. 检查 Skill 可用性（三级检测）
-  │     ├─ Vercel 官方 Skills：检查 ~/.workbuddy/skills/react-best-practices/ 等是否存在
-  │     ├─ 用户级 UI Skills：检查 ~/.workbuddy/skills/interface-design/ 等是否存在
-  │     └─ 自有 Skills：vue-best-practices 等（与 Vercel Skills 同目录检测）
+  ├─→ 4. 检查 Skill 可用性（两级检测）
+  │     ├─ 官方 Skills：检查 Vercel react-best-practices / Vue vue-best-practices 等是否存在（~/.workbuddy/skills/）
+  │     └─ 用户级 UI Skills：检查 interface-design / ui-ux-pro-max / impeccable / taste-skill 等是否存在
   │
   ├─→ 5. 按阶段接力激活
   │     ├─ 设计阶段：interface-design / ui-ux-pro-max

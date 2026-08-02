@@ -3,6 +3,8 @@ name: sop-init-frontend
 description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意前端项目后调用，自动扫描项目结构并生成 AGENTS.md + ai-context/ + rules/ + specs/ + demo/。适配 React/Vue/Taro/Next.js 等主流前端框架。
 ---
 
+<!-- SOP-VERSION: 3.3 -->
+
 # sop-init-frontend — 前端项目 AI 协作脚手架初始化（可插拔）
 
 ## 模板来源
@@ -88,6 +90,7 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 │       ├── frontend.md                # 从 templates/ai-context/rules/frontend.md.template
 │       ├── platform.md                # 从 templates/ai-context/rules/platform.md.template
 │       ├── workflow.md                # 从 templates/ai-context/rules/workflow.md.template
+│       ├── planning.md                # 从 templates/ai-context/rules/planning.md.template ★ 新增
 │       ├── testing.md                 # 从 templates/ai-context/rules/testing.md.template
 │       ├── review.md                  # 从 templates/ai-context/rules/review.md.template
 │       ├── skill-routing.md           # 从 templates/ai-context/rules/skill-routing.md.template ★
@@ -105,6 +108,7 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 - **design.md**：若扫描到特殊机制（插件注入、全局单例、微前端等），必须用独立章节详解。
 - **rules/frontend.md**：从真实代码提取风格（导出方式、命名规范、hooks 模式，标注风格来源）。
 - **rules/skill-routing.md**：根据扫描到的 UI Skill 可用性，填充降级策略中的安装状态标记。
+- **rules/planning.md**：从模板直接生成（全静态，无需扫描填充），定义 L3 复杂任务四阶段规划流程（理解→设计→拆解→自审）。所有项目生成相同内容。
 - **rules/react.md**（仅 React 项目）：填充第 0 节「项目 React 代码风格」→ `{{REACT_COMPONENT_STYLE}}` / `{{REACT_FILE_ORGANIZATION}}` / `{{REACT_EXPORT_IMPORT}}` / `{{REACT_TYPE_PREFERENCES}}`（从阶段 0 扫描的真实代码中提取，标注来源文件；若样本不足且用户选了"不保留风格"，填入 React 官方推荐写法并标注）；填充 `react` 版本号 → `{{REACT_VERSION_RULES}}`；填充状态管理深层约定 → `{{STATE_MANAGEMENT_DEEP}}`（不仅填命名约定，还要从实际代码中提取 store 文件组织方式和 selector 写法）；填充用户额外约束 → `{{REACT_USER_CONSTRAINTS}}`。
 - **rules/vue.md**（仅 Vue 项目）：填充第 0 节「项目 Vue 代码风格」→ `{{VUE_COMPONENT_STYLE}}` / `{{VUE_FILE_ORGANIZATION}}` / `{{VUE_EXPORT_IMPORT}}` / `{{VUE_TYPE_PREFERENCES}}` / `{{VUE_TEMPLATE_STYLE}}`（从阶段 0 扫描的真实代码中提取，标注来源文件；样本不足时同理处理）；填充 `vue` 版本号 → `{{VUE_VERSION_RULES}}`；填充 Store 约定 → `{{VUE_STORE_CONVENTIONS}}`；填充用户额外约束 → `{{VUE_USER_CONSTRAINTS}}`。
 - **rules/testing.md**：无单测项目 → 验证基线 = `类型检查 + 构建`，补自测清单。
@@ -120,17 +124,29 @@ SOP 初始化后，日常任务按以下阶段流转。AI 在每阶段自动读�
 ```
 接到任务
   │
+  ├─→ 复杂度预检 ★新增
+  │     AGENTS.md 判级（L0-L3）
+  │     ├─ L0 极简 → 直接执行（跳过所有 rules）
+  │     ├─ L1 简单 → 跳过分类/UI/规划/指定 → 直接实现
+  │     ├─ L2 常规 → 完整 SOP
+  │     └─ L3 复杂 → 完整 SOP + 规划模式
+  │
   ├─→ 澄清（workflow.md 铁律 4）
   │     确认新增/修改 + 落点
   │
-  ├─→ 任务分类 + Skill 调度 ★新增
+  ├─→ 任务分类 + Skill 调度 ★
   │     读 skill-routing.md → 判定任务类型
   │     ├─ UI 任务？→ ui-skill-router 激活对应 UI Skill
   │     ├─ React？→ Vercel react-best-practices + composition-patterns（如有）
   │     ├─ Vue？→ Vue 官方 vue-best-practices（如有）
+  │     ├─ L3 复杂？→ 进入规划模式（planning.md）
   │     └─ 纯逻辑？→ 仅框架 Skill
   │
-  ├─→ UI/UX 设计（按需激活）★新增
+  ├─→ 复杂任务规划（L3 强制）★新增
+  │     planning.md 四阶段：理解→设计→拆解→自审
+  │     方案确认 → 写入 specs/<slug>/ → 才能进入实现
+  │
+  ├─→ UI/UX 设计（L2 按需激活）
   │     interface-design / ui-ux-pro-max
   │     → 设计确认后再进入实现
   │
@@ -139,12 +155,12 @@ SOP 初始化后，日常任务按以下阶段流转。AI 在每阶段自动读�
   │     否 → 直接实现
   │
   ├─→ 实现（frontend.md + react.md/vue.md + 激活的 Skill）
-  │     框架 Skill 实时约束 + UI Skill（如 impeccable）
+  │     TDD 推荐用于 L3（RED-GREEN-REFACTOR）
   │
   ├─→ 自测（testing.md 基线）
   │     tsc + build + 多端验证
   │
-  ├─→ Review（review.md 五轴清单 + web-design-guidelines / taste-skill 审美审查）★增强
+  ├─→ Review（review.md 五轴清单 + web-design-guidelines / taste-skill 审美审查）
   │     + 填 acceptance 验证记录
   │
   ├─→ 提交（workflow.md 闭环 C）
@@ -159,11 +175,13 @@ SOP 初始化后，日常任务按以下阶段流转。AI 在每阶段自动读�
 AI 在对应阶段的行为：
 | 阶段 | 触发条件 | AI 动作 |
 |------|----------|---------|
-| **澄清** | 收到任何开发任务 | 先问「新增/修改 + 功能 + 落点」 |
+| **复杂度预检** ★ | 收到任何开发任务 | 按 AGENTS.md「复杂度分级」表判定 L0-L3，告知用户 |
+| **澄清** | 收到 L1-L3 任务 | 先问「新增/修改 + 功能 + 落点」 |
 | **任务分类** ★ | 澄清完成 | 读 `skill-routing.md` → 判定任务类型 → 激活对应 Skill 集（ui-skill-router 调度 UI/Vercel Skill + 框架 Skill 标记） |
+| **规划** ★ | L3 复杂任务 | 读 `planning.md` → 四阶段（理解→设计→拆解→自审）→ 产出 `specs/<slug>/` 并等用户批准。**方案确认前不写代码** |
 | **UI/UX 设计** ★ | 任务被分类为 UI 密集 | 激活 interface-design（信息架构）/ ui-ux-pro-max（UX 模式），设计结果先和用户确认 |
 | **Spec** | 用户确认走 specs | 按 TEMPLATE.md 建四件套目录 |
-| **实现** | spec 确认 / 小任务直接开始 | 读 `frontend.md` + `rules/react.md`（项目风格优先）+ Vercel react-best-practices（性能）+ Vercel composition-patterns（组件设计）+ UI Skill（如 impeccable） |
+| **实现** | spec 确认 / L1-L3 任务直接开始 | 读 `frontend.md` + `rules/react.md`（项目风格优先）+ Vercel react-best-practices（性能）+ Vercel composition-patterns（组件设计）+ UI Skill（如 impeccable）。L3 任务推荐 TDD（RED-GREEN-REFACTOR） |
 | **自测** | 实现完成 | 提醒跑 `tsc --noEmit` + 目标构建 |
 | **Review** | 自测通过 | 开 `review.md` 五轴检查，若有 UI 变更则激活 taste-skill 或 web-design-guidelines 做审美/系统化审查 |
 | **提交** | Review 通过 | 帮生成 conventional commit 消息 + PR 描述 |
@@ -185,7 +203,7 @@ AI 在对应阶段的行为：
 - **项目 Rules**：`rules/react.md` / `rules/vue.md`（SOP 初始化生成，含项目代码风格 + 框架铁律）— **最高优先级**
 - **React — Vercel 官方 Skill**：`react-best-practices` / `composition-patterns` / `web-design-guidelines`，通过 `npx skills add vercel-labs/agent-skills` 安装
 - **Vue — Vue 官方 Skill**：`vue-best-practices` / `vue-router-best-practices` / `vue-pinia-best-practices` 等 8 个，通过 `npx skills add vuejs-ai/skills` 安装
-- **本仓库旧版 `react-best-practices` / `vue-best-practices`**：已于 v3.0/v3.2 废弃。原规则已合并入对应 `rules/` 文件；性能/最佳实践由官方 Skill 承接。
+- **本仓库旧版 `react-best-practices` / `vue-best-practices`**：已于 v3.0/v3.2 废弃、v3.3 移除。原规则已合并入对应 `rules/` 文件（`rules/react.md` / `rules/vue.md`）作为项目级兜底；性能/最佳实践由官方 Skill 承接。
 
 **为什么放在用户级而非项目级？**
 - 项目初始化时只需生成 `ai-context/` 规则和 `AGENTS.md`，直接引用用户级 Skill，**不需要拷贝到每个项目**。
@@ -250,7 +268,7 @@ AI 在对应阶段的行为：
 | 各 rules 文件的「用户声明的额外约束 / User Constraints」章节 | **保留**，不因模板升级而覆盖（用户口述内容是项目的永久资产） |
 | `project-map.md` / `design.md` / `prd.md` 中由扫描生成的项目事实 | **保留** |
 | 用户手写的章节 / 注释（不在模板骨架中的内容） | **保留** |
-| 模板新增的章节 / 文件（如 v1→v2 新增 `react.md`、`skill-routing.md`） | **新增**，按模板骨架生成并填充 |
+| 模板新增的章节 / 文件（如 v2→v3 新增 `skill-routing.md`、`planning.md`） | **新增**，按模板骨架生成并填充 |
 | 模板结构调整（如生命周期新增阶段） | **更新** `AGENTS.md` 导航 + `workflow.md` 阶段表 |
 | `rules/frontend.md` 等通用规则模板的措辞修订 | **合并**：以新模板为准，但保留项目特定的 INSERT 内容 |
 
@@ -274,7 +292,7 @@ AI 在对应阶段的行为：
   ├─→ 更新 AGENTS.md 的 SOP-VERSION 标记 + 导航链接
   │
   └─→ 输出变更报告：
-        "新增：react.md / skill-routing.md
+        "新增：planning.md / skill-routing.md
          更新：workflow.md（新增任务分类阶段）
          保留：你的项目特定内容未受影响"
 ```

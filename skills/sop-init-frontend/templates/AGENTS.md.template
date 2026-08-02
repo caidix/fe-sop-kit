@@ -1,10 +1,32 @@
-<!-- SOP-VERSION: 3.2 -->
+<!-- SOP-VERSION: 3.3 -->
 # AGENTS.md — {{PROJECT_NAME}} 前端 AI 协作入口
 
 > 本文件是 CodeBuddy / WorkBuddy 等 AI 工具进入本项目时的**统一入口**。
 > 它不替代 `ai-context/` 下的详细文档，而是路由与纪律声明。
 >
 > 顶部 `SOP-VERSION` 标记用于「更新 SOP」时对比版本，请勿删除。
+
+---
+
+## 复杂度分级（每次任务优先判定）★
+
+收到开发任务后，**动手前先判定复杂度级别**，再决定加载多少规则。这是为了节省 token 成本：不是每个任务都需要加载全部约束和 Skill。
+
+| 级别 | 信号（满足任一） | 规则加载策略 | 说明 |
+|------|-----------------|------------|------|
+| **L0 极简** | 拼写修正、注释修改、单行配置、纯文案改动、README/文档更新 | **不加载任何 ai-context/rules/**，直接执行 | 本文件的铁律已足够兜底 |
+| **L1 简单** | 单文件小改、明确的小修复、样式微调（改颜色/间距/字号） | 仅加载 `ai-context/rules/frontend.md` | 跳过框架 rules 和 Skill，跳过 skill-routing |
+| **L2 常规** | 多文件变动、正常功能开发、大部分日常任务 | **完整 SOP**（当前默认行为） | 按下方导航逐层读取 |
+| **L3 复杂** ★ | 新功能、架构变更、重构、跨模块改动、用户说「复杂/大型」、涉及鉴权/支付 | **完整 SOP + 进入规划模式** | 必须读完 `ai-context/rules/planning.md`，方案确认后才写代码 |
+
+**判定规则：**
+- AI 收到任务后，根据上表信号**自行判定**级别，并告知用户：「判定为 L2 常规任务，开始按完整 SOP 执行」
+- **用户可随时纠正**：「这其实很简单」→ 降级；「这个需要仔细规划」→ 升级到 L3
+- 不确定时选**更高级别**（保守策略：宁愿多读规则，不要漏约束）
+
+> 为什么有这套分级：大部分任务不需要加载全部 rules + 15+ 个 Skill 的上下文。L0/L1 级任务如果每次都拉满全部约束，token 成本会显著上升。分级让简单任务轻装上阵，复杂任务深度武装。
+
+---
 
 ## 项目一句话
 {{PROJECT_ONELINER}}
@@ -26,8 +48,9 @@
 - `ai-context/rules/vue.md` —— Vue 框架专属约束（Vue 项目**必读**）
 - `ai-context/rules/platform.md` —— 多端部署与验证矩阵
 - `ai-context/rules/workflow.md` —— 开发流程纪律
+- `ai-context/rules/planning.md` —— 复杂任务规划模式（**L3 任务必读**，四阶段：理解→设计→拆解→自审）
 - `ai-context/rules/testing.md` —— 验证基线
-- `ai-context/rules/skill-routing.md` —— 技能调度规则（**实现前必读**，决定激活哪些 Skill）
+- `ai-context/rules/skill-routing.md` —— 技能调度规则（**L2/L3 任务实现前必读**，决定激活哪些 Skill）
 
 ## 外部 Skill（推荐安装）
 - **React 项目**推荐安装 Vercel 官方 Skill：`npx skills add vercel-labs/agent-skills`
@@ -36,9 +59,13 @@
   - vue-best-practices / vue-router-best-practices / vue-pinia-best-practices / create-adaptable-composable 等（共 8 个）
 - 未安装不影响开发，SOP 会自动降级使用项目 rules + 通用原则
 
-## 大型 / 高风险任务
-- 走 `specs/` 四件套：`proposal` / `design` / `tasks` / `acceptance`（模板见 `specs/TEMPLATE.md`）。
-- 实现后必须把验证命令与结果写进 `acceptance.md`（或 PR 描述），否则不能算完成。
+## 大型 / 高风险任务 → 走规划模式 或 specs
+
+**L3 复杂任务**：进入 `rules/planning.md` 所描述的四阶段规划流程（理解→设计→拆解→自审），方案确认后再实现。产出写入 `specs/<slug>/`。
+
+**L2 常规但较大的任务**：走 `specs/` 四件套：`proposal` / `design` / `tasks` / `acceptance`（模板见 `specs/TEMPLATE.md`）。
+
+**L0/L1**：无需 spec，直接实现后贴验证证据即可。
 
 ## 本地记忆（不入库）
 - WorkBuddy：`.workbuddy/memory/`（已被 `.gitignore` 忽略）
