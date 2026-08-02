@@ -125,6 +125,74 @@ cp -r skills/ui-skill-router ~/.workbuddy/skills/
 
 ---
 
+## 功能流程图谱
+
+本套 SOP 分三层协作：**初始化层**（一次性生成规则文件）、**运行时层**（每次开发自动生效）、**升级层**（模板迭代按需同步）。运行时入口先做复杂度判定（L0-L3），简单任务轻装、复杂任务深度规划。
+
+```mermaid
+flowchart TB
+    %% ===== 层 1：初始化（Bootstrap）=====
+    subgraph BOOT["① 初始化层 · 一次性（Skill 触发）"]
+        direction TB
+        A0["对 AI 说「初始化 SOP」"] --> A1["sop-init-frontend 扫描项目<br/>框架 · 路由 · 状态 · 样式 · API"]
+        A1 --> A2["ui-skill-router 检测已装 Skill<br/>Vercel / Vue 官方 / UI ×4"]
+        A2 --> A3["生成 AGENTS.md + ai-context/<br/>rules/ + specs/ + demo/"]
+        A3 --> A4["写入 SOP-VERSION 标记<br/>（升级判定依据）"]
+    end
+
+    A4 -.持久化到项目.-> R0
+
+    %% ===== 层 2：运行时（Runtime）=====
+    subgraph RUN["② 运行时层 · 每次开发（规则文件常驻）"]
+        direction TB
+        R0["AI 收到开发任务"] --> R1{"复杂度判定<br/>L0 - L3"}
+        R1 -->|"L0 极简"| L0["不加载 rules<br/>直接执行 · 近 0 token"]
+        R1 -->|"L1 简单"| L1["仅加载 frontend.md<br/>轻量"]
+        R1 -->|"L2 常规"| PH2["完整 SOP 流程"]
+        R1 -->|"L3 复杂 / 用户指定"| L3["进入规划模式"]
+
+        L3 --> P1["planning.md 四阶段<br/>理解 → 设计 → 拆解 → 自审"]
+        P1 --> HG{"方案已确认?"}
+        HG -->|"否 · Hard Gate 阻断"| P1
+        HG -->|"是"| PH2
+
+        PH2 --> C1["澄清 · workflow 铁律4<br/>确认 新增/修改 + 落点"]
+        C1 --> C2["任务分类 · skill-routing.md<br/>AI PM 判定激活 Skill"]
+        C2 --> C3{"UI 密集?"}
+        C3 -->|"是"| C4["ui-skill-router 激活<br/>interface-design / ui-ux-pro-max"]
+        C3 -->|"否"| C5["纯框架 / 逻辑"]
+        C4 --> C6{"大 / 高风险?"}
+        C5 --> C6
+        C6 -->|"是"| C7["specs/ 四件套<br/>proposal/design/tasks/acceptance"]
+        C6 -->|"否"| C8["实现"]
+        C7 --> C8
+        C8 --> C9["实现 · frontend + react/vue.md<br/>+ Vercel/Vue 官方 Skill（未装降级）"]
+        C9 --> C10["自测 · testing.md<br/>tsc + build + 多端"]
+        C10 --> C11["Review · review.md 五轴<br/>+ web-design-guidelines / taste-skill"]
+        C11 --> RG{"五轴全打勾?"}
+        RG -->|"否"| C11
+        RG -->|"是"| C12["提交 · conventional commit + PR"]
+        C12 --> C13["复盘 · 盲点留存 → rules / skill"]
+    end
+
+    %% ===== 层 3：升级（Upgrade）=====
+    subgraph UP["③ 升级层 · 模板迭代（按需同步）"]
+        direction TB
+        U1["本仓库 SOP 更新"] --> U2["重跑 install.sh<br/>升级 Skill（所有项目通用）"]
+        U2 --> U3["已初始化项目：对 AI 说「更新 SOP」"]
+        U3 --> U4["对比 SOP-VERSION<br/>git 备份 + 增量合并"]
+        U4 --> U5["保留 AI-INSERT / 手写内容<br/>新增 planning.md 等结构"]
+    end
+```
+
+> 静态图片版（便于在不支持 Mermaid 渲染的预览中查看）：
+>
+> ![功能流程图谱](assets/functional-flow.png)
+>
+> *矢量源文件：[assets/functional-flow.svg](assets/functional-flow.svg)*
+
+---
+
 ## 特色机制
 
 - **复杂度分级（L0-L3）** ★：每次任务自动判定复杂度——L0 极简直接执行（0 token 规则开销）、L1 简单仅加载前端风格、L2 常规走完整 SOP、L3 复杂进入深度规划模式。简单任务不为不需要的约束买单。
