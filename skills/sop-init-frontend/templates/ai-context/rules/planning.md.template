@@ -1,5 +1,6 @@
 # rules/planning.md — 复杂任务规划模式
 
+> **职责**：L3 复杂任务的四阶段规划（理解→设计→拆解→自审）。全静态文件，按 `##` 标题定位读取（见 `AGENTS.md` §二）。
 > 本文件是 **L3 复杂任务** 的强制执行流程。触发后，AI 必须按四阶段走完，**规划确认前不得写任何实现代码**。
 > 灵感来源：ECC `planner.md`（结构化方案）+ Superpowers `brainstorming`（苏格拉底式提问）+ Superpowers `writing-plans`（bite-sized 任务粒度）。
 

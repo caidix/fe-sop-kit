@@ -1,5 +1,6 @@
 # rules/framework-generic.md — {{FRAMEWORK_NAME}} 项目工程规则
 
+> **职责**：非 React/Vue 项目（含后端语言）的框架级约束与 NFR。按 `##` 标题定位，命中章节才读（见 `AGENTS.md` §二）。
 > **本文件的定位**：当 SOP 初始化检测到项目使用 **{{FRAMEWORK_NAME}}**（分类：{{FRAMEWORK_CATEGORY}}），且本 kit 没有该框架的专用模板时，生成此文件作为**框架级兜底约束**。
 >
 > 它复用与 `react.md` / `vue.md` 完全相同的「第 0 节项目代码风格」机制——**从真实代码扫描提取，而非套用教科书**。项目约定始终优先于任何通用最佳实践。

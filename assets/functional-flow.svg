@@ -116,7 +116,7 @@
 
   <rect class="branch" x="45" y="598" width="210" height="44" rx="8"/>
   <text class="node-t" x="150" y="615">L1 简单</text>
-  <text class="node-t" x="150" y="632">仅 frontend.md</text>
+  <text class="node-t" x="150" y="632">样式 + review + 必过关卡</text>
 
   <rect class="branch" x="660" y="514" width="320" height="52" rx="8"/>
   <text class="node-t" x="820" y="533">L3 复杂</text>
@@ -184,16 +184,17 @@
   <text class="node-t" x="350" y="1750">本仓库 SOP 更新</text>
 
   <rect class="node" x="190" y="1789" width="320" height="48" rx="8"/>
-  <text class="node-t" x="350" y="1818">重跑 install.sh 升级 Skill</text>
+  <text class="node-t" x="350" y="1806">第一步·kit侧：git pull 更新版本</text>
+  <text class="node-t" x="350" y="1823">+ 重跑 install.sh 升级 Skill</text>
 
   <rect class="node" x="190" y="1861" width="320" height="48" rx="8"/>
-  <text class="node-t" x="350" y="1890">已初始化项目：对 AI 说「更新 SOP」</text>
+  <text class="node-t" x="350" y="1890">第二步·项目侧：对 AI 说「更新 SOP」</text>
 
   <rect class="node" x="190" y="1931" width="320" height="48" rx="8"/>
-  <text class="node-t" x="350" y="1948">对比 SOP-VERSION</text>
-  <text class="node-t" x="350" y="1965">+ git 备份 + 增量合并</text>
+  <text class="node-t" x="350" y="1948">对比 SOP-VERSION + 增量合并</text>
+  <text class="node-t" x="350" y="1965">保留 AI-INSERT / 手写内容</text>
 
   <rect class="node" x="190" y="1981" width="320" height="48" rx="8"/>
-  <text class="node-t" x="350" y="1998">保留 AI-INSERT / 手写内容</text>
-  <text class="node-t" x="350" y="2015">+ 新增 planning.md 等结构</text>
+  <text class="node-t" x="350" y="1998">新增 quality-baseline 等 + 覆盖脚本</text>
+  <text class="node-t" x="350" y="2015">跑 sop-check → 用户在项目自行 commit</text>
 </svg>

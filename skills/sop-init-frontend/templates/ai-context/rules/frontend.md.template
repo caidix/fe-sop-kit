@@ -1,5 +1,6 @@
 # rules/frontend.md — 代码风格
 
+> **职责**：代码风格、设计决策卡、NFR 预算。按 `##` 标题定位，命中章节才读（见 `AGENTS.md` §二）。
 > 风格来源：{{STYLE_SOURCE}}（{{STYLE_SOURCE_DETAIL}}）
 > 新代码须与此风格一致。
 
@@ -22,6 +23,30 @@
 ## 状态管理规范
 <!-- AI-INSERT: useSelector 类型化写法、dispatch 方式、slice 组织 -->
 {{STATE_CONVENTIONS}}
+
+## 设计决策卡（写代码前的四问）★
+<!--
+  目的：把"资深前端凭直觉做的取舍"显式化，避免 AI 写出过度设计或漏掉竞态的代码。
+  AI-INSERT: 从项目真实代码提取下列四项的实际约定；项目尚无先例的，按推荐默认值填并标注「建议」。
+-->
+
+### 1. 状态放哪儿（就近原则）
+<!-- AI-INSERT: 示例——组件内部交互态用 useState；跨 2+ 层级共享用 Context；跨页面/需持久化的进全局 store。填本项目实际分层 -->
+{{STATE_PLACEMENT}}
+
+### 2. 组件怎么拆
+<!-- AI-INSERT: 示例——超过 300 行或含独立数据请求的拆容器/展示组件；纯展示优先 props 驱动；复用 ≥ 3 处才抽象 -->
+{{COMPONENT_SPLIT}}
+
+### 3. 副作用的边界
+<!-- AI-INSERT: 示例——数据请求统一走 hook/SDK，不在渲染里发请求；useEffect 必须写 cleanup；订阅/定时器在卸载时释放 -->
+{{EFFECT_BOUNDARY}}
+
+### 4. 请求竞态与取消
+<!-- AI-INSERT: 示例——同 key 请求用 AbortController / 请求序号丢弃旧响应；切页/卸载时取消；列表分页保留最新一页 -->
+{{RACE_HANDLING}}
+
+> 上述约定来自 `quality-baseline.md` 与项目实情；无先例时按「建议」执行，落地后回填为项目约定。
 
 ## Import 顺序
 <!-- AI-INSERT: 从代码中观察到的 import 顺序（通常：第三方 → 内部包 → 相对路径 → 样式） -->

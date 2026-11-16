@@ -1,0 +1,19 @@
+{
+  "srcDirs": ["src"],
+  "codeExtensions": [".ts", ".tsx", ".js", ".jsx", ".vue"],
+  "maxFileLines": 300,
+  "maxWarningsPerCheck": 5,
+  "checks": {
+    "maxFileLines": true,
+    "consoleLog": true,
+    "anyType": true,
+    "dangerousApi": true,
+    "todoComment": false
+  },
+  "ignore": ["**/*.test.*", "**/*.spec.*", "**/node_modules/**", "**/dist/**", "**/build/**"],
+  "budgets": {
+    "agentsMaxChars": 4500,
+    "ruleMaxChars": 10000,
+    "rulesTotalMaxChars": 40000
+  }
+}

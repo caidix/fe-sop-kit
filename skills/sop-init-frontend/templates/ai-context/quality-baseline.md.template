@@ -1,0 +1,35 @@
+# quality-baseline.md — 质量基线快照
+
+> 记录项目当前的**可量化质量水位**，作为后续改动的对照基准（移植自 harness-engineering 的 "measure before / after"）。
+> 更新时机：SOP 初始化时采一次基线；每个迭代里程碑、或性能/体积专项后重采。
+> 基线不是目标值——它只是「当前水位」，用来回答"这次改动让东西变好了还是变差了"。
+
+## 采集命令速查
+<!-- AI-INSERT: 从 package.json / 构建配置提取下列命令的实际写法，跑不出来填「未配置」并说明 -->
+| 指标 | 命令 | 采集点 |
+|------|------|--------|
+| 类型检查 | `{{TYPECHECK_COMMAND}}` | 每次提交 |
+| 构建产物体积 | `{{BUILD_COMMAND}}` + 体积统计 | 里程碑 |
+| 单测覆盖率 | `{{TEST_COVERAGE_COMMAND}}` | 里程碑 |
+| Lint | `{{LINT_COMMAND}}` | 每次提交 |
+
+## 当前基线（最近一次采集）
+<!-- AI-INSERT: 实际跑一次上面的命令，把结果数字填入；不要编造。跑不出填「未采集」并注明原因 -->
+| 指标 | 数值 | 采集日期 | 备注 |
+|------|------|----------|------|
+| 主 bundle 体积 (gzip) | {{BUNDLE_SIZE}} | {{BASELINE_DATE}} | |
+| 单测覆盖率 (%) | {{COVERAGE}} | {{BASELINE_DATE}} | 无单测填「不适用」 |
+| tsc 错误数 | {{TSC_ERRORS}} | {{BASELINE_DATE}} | 应为 0 |
+| Lint 警告数 | {{LINT_WARNINGS}} | {{BASELINE_DATE}} | |
+
+## 回归红线
+<!-- AI-INSERT: 定义"变差到什么程度必须拦截"，写入 review.md 可执行检查或 CI。
+  示例：主 bundle gzip 较基线 +10% 即阻断；覆盖率不得低于基线 -5%。未设则逐条填「暂不设红线」。 -->
+- {{REGRESSION_GUARD_1}}
+- {{REGRESSION_GUARD_2}}
+
+## 变更记录
+<!-- 每次重采基线追加一行：日期 | 指标变化 | 原因（如"升级 React 后 bundle +8KB"） -->
+| 日期 | 变化 | 原因 |
+|------|------|------|
+| {{BASELINE_DATE}} | 初始基线 | SOP 初始化 |

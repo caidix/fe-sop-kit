@@ -1,0 +1,7 @@
+# 本地 AI 记忆（按 SOP 约定不入库）
+.workbuddy/
+.codebuddy/
+
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db

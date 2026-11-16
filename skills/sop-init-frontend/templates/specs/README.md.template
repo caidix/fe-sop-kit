@@ -8,10 +8,12 @@
 `specs/<YYYYMMDD>-<slug>/`
 
 ## 四件套（从 TEMPLATE.md 复制）
-1. `proposal.md` — 范围与不在范围
+1. `proposal.md` — 范围与不在范围内
 2. `design.md` — 技术方案
 3. `tasks.md` — 拆分可验证任务
 4. `acceptance.md` — 验证记录与证据
 
+> 四件套必须齐备：未写完时在 `proposal.md` 顶部标 `状态：草稿`（sop-check 据此豁免完整性检查）；**废弃的 spec 直接删除整个目录**，不要留残缺半成品（只有 design 或只有 tasks 的目录是熵增）。
+
 ## 存档
-在 `tasks.md` 全部勾选且 `acceptance.md` 完整后，spec 可归档。不删除，供后续追溯。
+在 `tasks.md` 全部勾选且 `acceptance.md` 完整（状态到 `已交付`、验证边界声明无未关闭项）后，spec 可归档。不删除，供后续追溯。

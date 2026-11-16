@@ -1,10 +1,10 @@
-<!-- SOP-VERSION: 3.5 -->
+<!-- SOP-VERSION: 3.8 -->
 
 # sop-frontend-kit — 前端项目 AI 协作脚手架（可插拔）
 
-> **SOP 版本：v3.5**
+> **SOP 版本：v3.8**
 
-一套**可复用的前端 AI 协作规范模板包**。放到任意前端项目中调用一次，AI 自动扫描项目结构并生成 `AGENTS.md` + `ai-context/` + `rules/` + `specs/` + `demo/`。支持 CodeBuddy / WorkBuddy 双工具。
+一套**可复用的前端 AI 协作规范模板包**。放到任意前端项目中调用一次，AI 自动扫描项目结构并生成 `AGENTS.md` + `ai-context/` + `rules/` + `specs/`（+ 可选的 `demo/`）。支持 CodeBuddy / WorkBuddy 双工具。
 
 ---
 
@@ -73,25 +73,55 @@ cp -r skills/ui-skill-router ~/.workbuddy/skills/
 
 ---
 
-## 升级已初始化的项目
+## 上下文成本控制（token 预算）
 
-本仓库 SOP 模板改动后，已初始化的项目需同步，**分两步**：
+规则越全，每次会话读入的上下文越多；而**上下文越长，关键约束反而越容易被稀释**。本 kit 用三层机制把成本压到可控：
 
-**第一步：升级 Skill（所有项目通用）** —— 重跑安装脚本，所有项目立即用上最新 Skill 版本：
+| 机制 | 落在哪 | 作用 |
+|------|--------|------|
+| **三步判级 + 加载表** | `AGENTS.md` §一 | L0-L3 是 SOP 自定标签（工具不认识），所以判级写成可执行步骤：① 数改动面（≤1 / 1-2 / 3-5 / >5 文件）② 查高风险面（鉴权、支付、路由注册、全局状态等命中即 L3）③ 兜底默认 L2。判完在首条回复自报「判级 + 已读文件」，漏读一眼可见。纯样式改动只读 `frontend.md`「样式规范」+ `review.md`「五轴审查」+ `testing.md`「必过关卡」+ `workflow.md`「铁律 4」（合计约 3.4K 字符），不碰框架 rules / `planning.md` / `skill-routing.md` / `platform.md` |
+| **读取纪律** | `AGENTS.md` §二 | 先 `grep -n "^## "` 取章节表，再按 `offset/limit` 读片段；同一会话不重读；`project-map` / `prd` / `design` 默认不读 |
+| **体量预算** | `sop-check` | 每次运行打印 `AGENTS.md` / `rules` 实际字符数；超预算告警：AGENTS.md > 4,500、单文件 > 10,000、合计 > 40,000 |
 
-```bash
-./scripts/install.sh        # 或 all
+预算设的是**天花板**，不是目标。按模板生成一套 React 项目，`rules/` 开箱约 **34,000 字符**（`skill-routing.md` 9,600、`react.md` 8,100 是最大的两个），留给项目沉淀「已知陷阱」的空间约 6,000 字符——所以生成时应优先删掉与本项目无关的章节（另一个框架的适配说明、未安装 Skill 的详细用法），比事后拆分更有效。确需放宽时改 `sop.config.json`：
+
+```json
+{ "budgets": { "agentsMaxChars": 4500, "ruleMaxChars": 10000, "rulesTotalMaxChars": 40000 } }
 ```
 
-**第二步：同步项目内的 rules（按需）** —— 在**已初始化的项目**里对 AI 说 **「更新 SOP」** 或 **「同步最新规范」**，AI 会：
+`"budgets": false` 关闭预算告警（体量指标仍会打印）。`--json` 输出的 `metrics` 字段可直接接 CI 趋势图。
 
-1. 读取项目 `AGENTS.md` 顶部的 `SOP-VERSION` 标记，对比本仓库版本
-2. **增量合并**——保留你已填充的内容（AI-INSERT 区域、已知陷阱、手写章节），只新增/更新模板结构变化
-3. 新增旧版本没有的文件（如 v3.2→v3.3 新增的 `planning.md`）
-4. 更新 `AGENTS.md` 的版本标记与导航
-5. 输出变更报告，并在合并前对 `ai-context/` 做一次 git 备份
+---
+
+## 升级已初始化的项目
+
+模板迭代后，升级分**两个独立步骤**——先升级 kit 自身的版本，再把新版本内容同步到各个项目：
+
+### 第一步：升级 SOP 版本（kit 侧，一次性）
+
+把本仓库更新到最新版（拉取最新代码），然后重跑安装脚本，让 Skill 升级到新版（所有项目通用）：
+
+```bash
+git pull                    # 更新 kit 到最新版
+./scripts/install.sh        # 或 all —— 升级 Skill
+```
+
+> Skill 是用户级安装的（不在项目内），所以升级一次，所有项目立即用上新 Skill。
+
+### 第二步：把新版内容同步到项目（项目侧，逐个项目）
+
+在**每个已初始化的项目**里对 AI 说 **「更新 SOP」** 或 **「同步最新规范」**，AI 会：
+
+1. 读取项目 `AGENTS.md` 顶部的 `SOP-VERSION` 标记，对比 kit 当前版本；相同则提示「已是最新」
+2. **增量合并**——保留你已填充的内容（AI-INSERT 区域、已知陷阱、用户约束、手写章节），只新增/更新模板结构变化
+3. 新增旧版本没有的文件（如 v3.7 新增的 `quality-baseline.md`；`sop.config.json` 会询问是否启用代码熵检查）
+4. 若新增了 `quality-baseline.md`，实跑命令采一次质量基线填入（跑不出填「未采集」）
+5. 脚本类文件（`scripts/sop-check.mjs`）以 kit 最新版**整体覆盖**，并更新 `AGENTS.md` 的版本标记与导航
+6. 输出变更报告，并跑一次 `node scripts/sop-check.mjs` 确认升级后健康
 
 > 不会直接覆盖项目内容。遇到无法安全合并的冲突会停下来询问你如何处理。
+
+**升级后的提交由你决定**：确认变更报告无误后，在**项目仓库**里自行提交一次 commit（如 `chore: 更新 SOP 至 vX.Y`）。这个 commit 就是回退点——kit 不代你提交，也不做自动 git 备份。
 
 每个生成的项目 `AGENTS.md` 顶部都有 `<!-- SOP-VERSION: x.y -->`，这是「更新 SOP」判断是否需要升级的依据。
 
@@ -110,7 +140,9 @@ node scripts/sop-check.mjs --json     # 机器可读输出
 | 级别 | 检查项 |
 |------|--------|
 | **FAIL** | AGENTS.md / SOP-VERSION 标记缺失、必要 rules 缺失、仍有未填占位符 `{{...}}` |
-| **WARN** | 版本漂移、TODO/TBD/待定残留、rules 文件 > 400 行、跨文件重复段落、frontend.md 缺 NFR 节 |
+| **WARN** | 版本漂移（含脚本版本落后提示）、TODO/TBD/待定残留（排除否定语境与代码块）、rules 文件 > 400 行、跨文件重复段落、frontend.md 缺 NFR 节、specs 四件套不齐备（`状态：草稿` 豁免）、缺质量基线快照（在 AGENTS.md「裁剪」区块显式声明不生成可豁免） |
+| **WARN（预算）** | 规则体量超预算——AGENTS.md > 4,500 字符、单文件 > 10,000、`rules/` 合计 > 40,000（`sop.config.json` 的 `budgets` 可调；`false` 只关体量预算，>400 行检查仍执行）；每次运行都打印实际体量 |
+| **WARN（可选）** | 代码熵扫描——**仅当 `sop.config.json` 里出现代码扫描字段（`srcDirs` / `checks` / `maxFileLines` 等，或显式 `"codeEntropy": true`）才启用**；只写 `budgets` 调预算不会触发扫描。检查超长源码 / console 残留 / any 类型 / 危险 API / 代码 TODO，各项可配阈值与忽略规则；**启用但未匹配到源文件会告警**（避免 srcDirs 写错时空跑）；无配置文件则完全静默 |
 
 接入 CI（示例）：
 
@@ -128,10 +160,12 @@ node scripts/sop-check.mjs --json     # 机器可读输出
 ```
 <你的项目>/
 ├── AGENTS.md                          # 统一入口（CodeBuddy + WorkBuddy）+ SOP 版本标记
+├── sop.config.json                    # 【可选，默认生成】代码熵硬门禁配置（sop-check 据此扫描源码）
 ├── ai-context/
 │   ├── project-map.md                 # 目录地图 + 项目特有机制
 │   ├── prd.md                         # 产品定位 + 模块清单
 │   ├── design.md                      # 架构设计 + 特有机制详解
+│   ├── quality-baseline.md            # 质量基线快照（体积/覆盖率/tsc/lint + 回归红线）★
 │   └── rules/
 │       ├── frontend.md                # 代码风格（必读）+ 非功能需求(NFR)节 ★
 │       ├── react.md                   # React 项目宪法 ★（第 0 节：代码风格；后续：Hooks/ErrorBoundary/Suspense 等）
@@ -145,13 +179,13 @@ node scripts/sop-check.mjs --json     # 机器可读输出
 ├── specs/
 │   ├── README.md                      # spec 归档说明 + 大/高风险触发判据
 │   └── TEMPLATE.md                    # 大需求四件套模板（含交付审计）
-├── demo/
-│   └── README.md                      # 好实践示例（参考，不入库构建）
+├── demo/                              # 【可选，默认不生成】好实践示例（阶段 1 确认需要才生成）
+│   └── README.md                      # 实践沉淀默认走 rules「已知陷阱」节
 └── scripts/
     └── sop-check.mjs                  # SOP 健康检查 / CI 硬门禁 ★
 ```
 
-> `react.md` / `vue.md` 根据扫描到的框架**二选一**生成；`specs/`、`demo/` 默认生成空壳 + 说明，随项目发展填充。
+> `react.md` / `vue.md` 根据扫描到的框架**二选一**生成；`specs/` 默认生成空壳 + 说明，随项目发展填充；`demo/` v3.6 起改为**可选**（默认不生成——air-chat 等稳定项目实践证明示例库最终会被移除，实践沉淀走 rules「已知陷阱」更持久）。
 
 ---
 
@@ -166,7 +200,7 @@ flowchart TB
         direction TB
         A0["对 AI 说「初始化 SOP」"] --> A1["sop-init-frontend 扫描项目<br/>框架 · 路由 · 状态 · 样式 · API"]
         A1 --> A2["ui-skill-router 检测已装 Skill<br/>Vercel / Vue 官方 / UI ×4"]
-        A2 --> A3["生成 AGENTS.md + ai-context/<br/>rules/ + specs/ + demo/"]
+        A2 --> A3["生成 AGENTS.md + ai-context/<br/>rules/ + specs/ + quality-baseline<br/>（demo/ 可选，默认不生成）"]
         A3 --> A4["写入 SOP-VERSION 标记<br/>（升级判定依据）"]
     end
 
@@ -176,8 +210,8 @@ flowchart TB
     subgraph RUN["② 运行时层 · 每次开发（规则文件常驻）"]
         direction TB
         R0["AI 收到开发任务"] --> R1{"复杂度判定<br/>L0 - L3"}
-        R1 -->|"L0 极简"| L0["不加载 rules<br/>直接执行 · 近 0 token"]
-        R1 -->|"L1 简单"| L1["仅加载 frontend.md<br/>轻量"]
+        R1 -->|"L0 极简"| L0["不加载 rules<br/>直接执行"]
+        R1 -->|"L1 简单"| L1["样式规范 + review 五轴<br/>+ 必过关卡（约 3.4K 字符）"]
         R1 -->|"L2 常规"| PH2["完整 SOP 流程"]
         R1 -->|"L3 复杂 / 用户指定"| L3["进入规划模式"]
 
@@ -208,10 +242,10 @@ flowchart TB
     %% ===== 层 3：升级（Upgrade）=====
     subgraph UP["③ 升级层 · 模板迭代（按需同步）"]
         direction TB
-        U1["本仓库 SOP 更新"] --> U2["重跑 install.sh<br/>升级 Skill（所有项目通用）"]
-        U2 --> U3["已初始化项目：对 AI 说「更新 SOP」"]
-        U3 --> U4["对比 SOP-VERSION<br/>git 备份 + 增量合并"]
-        U4 --> U5["保留 AI-INSERT / 手写内容<br/>新增 planning.md 等结构"]
+        U1["第一步 · kit 侧：git pull 更新 SOP 版本<br/>重跑 install.sh 升级 Skill（所有项目通用）"]
+        U1 --> U2["第二步 · 项目侧：对 AI 说「更新 SOP」<br/>对比 SOP-VERSION + 增量合并"]
+        U2 --> U3["保留 AI-INSERT / 手写内容<br/>新增 quality-baseline.md 等结构<br/>整体覆盖 sop-check.mjs"]
+        U3 --> U4["跑 sop-check 确认健康<br/>→ 用户在项目里自行 commit"]
     end
 ```
 
@@ -226,10 +260,10 @@ flowchart TB
 ## 特色机制
 
 - **硬门禁脚本（验证优于说教）** ★：`scripts/sop-check.mjs` 把"AGENTS.md 存在 / 占位符已填 / 版本一致"等软纪律变成 CI 可阻断的硬约束；`--strict` 模式警告也计失败。移植自 harness-engineering。
-- **熵检测（entropy GC 窄版本）** ★：sop-check 自动检测 rules 超长（>400 行）、跨文件重复段落、TODO/TBD 残留，防止 AI 生成的规则随时间臃肿。移植自 harness-engineering 的 entropy garbage collection。
+- **熵检测（entropy GC 窄版本）** ★：sop-check 自动检测 rules 超长（>400 行）、跨文件重复段落、TODO/TBD 残留、**规则体量预算**（AGENTS.md > 4,500 字符 / 单文件 > 10,000 / `rules/` 合计 > 40,000），每次运行都打印实际体量，防止 AI 生成的规则随时间臃肿。移植自 harness-engineering 的 entropy garbage collection。
 - **非功能需求（NFR）承载** ★：`frontend.md` 新增「非功能需求」节——性能预算 / 安全基线 / 可访问性 / 浏览器兼容 / 国际化，作为可恢复、可校验的项目级约束。移植自 harness-engineering。
 - **累积一致性** ★：复盘时踩过的坑不只写散文，而是沉淀为 `review.md` 可勾选检查项或 `sop-check` 检测规则，让一次踩坑变成后续所有任务的自动约束。移植自 harness-engineering。
-- **复杂度分级（L0-L3）** ★：每次任务自动判定复杂度——L0 极简直接执行（0 token 规则开销）、L1 简单仅加载前端风格、L2 常规走完整 SOP、L3 复杂进入深度规划模式。简单任务不为不需要的约束买单。
+- **加载成本分级（L0-L3）** ★：每次任务自动判定复杂度，并按「必读 / 按需 / 跳过」矩阵加载——L0 不读任何 rules、L1 只读「样式规范 + review 五轴 + 必过关卡 + 铁律 4」（约 3.4K 字符）、L2 读规则集（除 planning）、L3 全量 + 深度规划模式。配合**读取纪律**（先 `grep` 章节再按片段读、同一会话不重读、项目文档默认不读），避免把整套 rules 整文件反复读入。简单任务不为不需要的约束买单。
 - **复杂任务规划模式** ★：L3 任务触发四阶段规划（理解需求 → 方案设计 → 任务拆解 → 自审），方案确认前**不写任何代码**。融合 ECC `planner.md` 的结构化方案 + Superpowers 的苏格拉底式提问 + bite-sized 任务粒度（2-5 分钟/task）。
 - **全生命周期闭环**：复杂度预检 → 澄清 → 任务分类 + Skill 调度 → **规划（L3）** → UI 设计 → spec → 实现 → 自测 → Review → 提交 → 复盘，十一个阶段。
 - **TDD 引导** ★：L3 复杂任务强烈建议采用 RED-GREEN-REFACTOR 循环；Bug 修复建议先写复现测试。灵感来自 Superpowers `test-driven-development`。
@@ -245,6 +279,7 @@ flowchart TB
 - **盲点留存**：遇到非显而易见的坑，AI 主动问你是否记成项目规则或 Skill，避免下次再犯（支持写入框架专属陷阱节）。
 - **平台自适应**：支持手写路由 / File-based Router / 编译期插件注入等不同路由模式。
 - **双工具兼容**：生成的 `AGENTS.md` 与 `ai-context/` 同时被 CodeBuddy 和 WorkBuddy 读取，规则一致。
+- **载入契约（重要）**：L0-L3 只是本 SOP 的自定义标签，**工具并不认识它们**——agent 是靠读 `AGENTS.md` 里的「三步判级法」自然语言执行的。所以这套规则生效的前提是 **`AGENTS.md` 进了模型上下文**：CodeBuddy / WorkBuddy 会按约定自动读取；若换用 Cursor / Copilot / Claude Code 等，需把它映射到各自的入口（`.cursor/rules`、`.github/copilot-instructions.md`、`CLAUDE.md` 软链），否则规则等于没装。
 - **框架层可插拔兜底** ★：不再只认 React/Vue。检测到 Svelte/Angular/Solid/Vanilla 等**其他前端框架**，或 Python/Go/Java/Rust 等**后端语言**时，自动生成 `rules/framework-generic.md`（第 0 节代码风格扫描 + 通用工程纪律 + 该栈官方最佳实践）。React/Vue 仍走深度专用模板；其余一切走通用兜底，项目约定始终优先。
 
 ---
@@ -279,7 +314,10 @@ flowchart TB
 <details>
 <summary>版本历史（CHANGELOG）</summary>
 
-- **v3.5（当前）**：**框架层可插拔兜底**——不再只认 React/Vue。新增 `rules/framework-generic.md` 通用模板：第 0 节代码风格扫描（与 react.md/vue.md 同机制）+ 通用工程纪律 + 该栈官方最佳实践。初始化时按分类（React / Vue / 其他前端框架 / 后端语言 / 未知）决定生成哪个框架 rules；后端项目跳过 `frontend.md`，质量约束由 `framework-generic.md` NFR 节承载。`sop-check.mjs` 框架文件要求改为 react/vue/generic 至少其一，`frontend.md`/`platform.md` 降级为 WARN。
+- **v3.8（当前）**：**上下文成本控制（token 预算）**——① `AGENTS.md` 模板重构：把「进入项目后依次读取 11 个文件」改为「**三步判级法**（数改动面 → 查高风险面 → 兜底默认 L2）+ 加载表（必读 / 按需 / 跳过）+ 读取纪律（先 grep 章节再按片段读、不重读、项目文档默认不读）+ 文件索引表」，并在首条回复自报「判级 + 已读文件」，一次样式改动从「全量 rules（约 2.3 万字符）」降到「样式规范 + review 五轴 + 必过关卡 + 铁律 4（约 3.4K 字符）」；② AGENTS.md 瘦身（模板 3,774 字符，含三步判级法，外部 Skill 安装建议归并到 `skill-routing.md`，分级细则归位 `workflow.md`，删除与 rules 重复的说明）；③ 各 rules 模板加一行「职责 + 按节读」提示（不展开静态目录——目录用 `grep "^## "` 动态获取，避免漂移）；④ `sop-check` 新增**规则体量预算**（AGENTS.md 4,500 / 单文件 10,000 / 合计 40,000 字符，可由 `sop.config.json` 的 `budgets` 覆盖；`false` 只关体量预算，>400 行检查仍执行），每次运行打印实际体量，`--json` 输出 `metrics` 便于 CI 追踪；⑤ 修复 `workflow.md` 中 `demo/` 硬编码残留（改为条件化表述）；⑥ 判级可执行化（二次评审）：**L0-L3 是自定标签、工具不认识**，原「信号」列是模糊描述（多文件/正常功能），改为**三步判级法**——数改动面（≤1/1-2/3-5/>5 文件）→ 查高风险面（鉴权/支付/请求拦截器/构建配置/接口协议等命中即 L3，新增一条路由不算）→ 兜底默认 L2，并要求首条回复自报「判级 + 已读文件」以便核查；⑦ 二次评审修复：**质量基线豁免被文件索引行误触发**（改为只认「裁剪」区块的显式声明）、**代码熵启用但零匹配源文件时静默全绿**（现改为告警）、分级矩阵把 `review.md` / `testing.md` / `skill-routing.md` 降级为「按需」与各自的强制条款冲突（改为**必读、只读命中节**，不动质量红线），并把 `workflow.md` 铁律 4 的任务分类限定到 L2/L3；`kit-self-check` 的 install.sh 版本校验覆盖安装横幅、新增「生成集合计不得超预算」校验；代码熵改为「配置含代码扫描字段（或 `codeEntropy:true`）才启用」，避免只为调 `budgets` 的项目被意外开启扫描。
+- **v3.7**：**把「验证优于说教」落到代码层 + 质量可度量**——① 新增可选 `sop.config.json`：项目放置后 `sop-check` 会扫描源码（超长文件 / console 残留 / any 类型 / 危险 API / 代码 TODO），按配置开关与阈值执行、每类输出限流；**不生成则代码熵检查完全静默**（老项目升级不会被刷屏）；② 新增 `ai-context/quality-baseline.md`：初始化时实跑命令采一次质量水位（bundle 体积/覆盖率/tsc/lint）+ 回归红线，作为改动前后对照基准；③ `frontend.md` 新增「设计决策卡」四问（状态放哪儿/组件怎么拆/副作用边界/请求竞态），把资深前端的取舍显式化，避免 AI 过度设计或漏掉竞态；④ 修 v3.6 Review 遗漏：install.sh 版本号、README/SKILL 中 demo/ 描述、spec 目录白名单过滤、TODO 否定语境改就近判定、spec 状态行必填强调。
+- **v3.6**：**检查器自检与升级闭环修复**（源自 air-chat 实战评审）——① 修复 sop-check.mjs 全局正则 `lastIndex` 跨文件串扰（`todoRe` / `placeholderRe` 带 `/g` 在循环里 `.test()` 导致漏报/误报）；② TODO 检测排除否定语境与代码块（规则里「禁止：TBD」不再被误报为待办残留）；③ 新增 specs 四件套完整性检查（`状态：草稿` 豁免，残缺目录 WARN）；④ 脚本内嵌 `SOP-CHECK-VERSION` 标记并在输出打印，kit-self-check 校验其与 kit 版本一致，SKILL.md 增量更新流程明确「脚本类文件一律以 kit 最新版整体覆盖」（修复项目脚本停留在旧版、文档宣称能力与实际脱节的问题）；⑤ spec 状态机补「待验证」中间态 + 状态流转约定 + 「验证边界声明」节（部分完成的正式出口，防止状态与验证记录自相矛盾）；⑥ demo/ 改为可选（默认不生成），AGENTS.md 模板新增「本项目对 SOP 的裁剪」区块统一声明删减、升级时保留。
+- **v3.5**：**框架层可插拔兜底**——不再只认 React/Vue。新增 `rules/framework-generic.md` 通用模板：第 0 节代码风格扫描（与 react.md/vue.md 同机制）+ 通用工程纪律 + 该栈官方最佳实践。初始化时按分类（React / Vue / 其他前端框架 / 后端语言 / 未知）决定生成哪个框架 rules；后端项目跳过 `frontend.md`，质量约束由 `framework-generic.md` NFR 节承载。`sop-check.mjs` 框架文件要求改为 react/vue/generic 至少其一，`frontend.md`/`platform.md` 降级为 WARN。
 - **v3.4**：移植 harness-engineering 优点——新增 `scripts/sop-check.mjs` 硬门禁脚本（验证优于说教：占位符/版本/规则完整性 CI 可阻断）+ 熵检测（超长/重复/TODO）；新增 `scripts/kit-self-check.mjs`（kit 侧 evals）；`frontend.md` 新增「非功能需求 NFR」节（性能/安全/可访问/兼容/i18n 作为可恢复约束）；`review.md` 五轴增加可执行检查命令；复盘阶段增加「累积一致性」（坑沉淀为可勾选检查项/sop-check 规则）。
 - **v3.3**：新增「复杂度分级 L0-L3」——简单任务轻装上阵、复杂任务深度武装；新增 L3 复杂任务规划模式 `planning.md`（融合 ECC `planner.md` 结构化方案 + Superpowers `brainstorming` 苏格拉底提问 + `writing-plans` bite-sized 任务粒度）；引入 TDD 引导、验证前置、Spec 自审清单、Hard Gate 机制。
 - **v3.2**：接入 Vue 官方 `vuejs-ai/skills`（8 个专用 Skill）；`install.sh` 改为互动式（按 React/Vue 选择，仅给出安装指令不自动执行，避免替用户装无用 Skill）；废弃自有 `vue-best-practices`。

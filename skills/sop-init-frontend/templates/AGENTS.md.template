@@ -1,80 +1,85 @@
-<!-- SOP-VERSION: 3.5 -->
+<!-- SOP-VERSION: 3.8 -->
 # AGENTS.md — {{PROJECT_NAME}} 前端 AI 协作入口
 
-> 本文件是 CodeBuddy / WorkBuddy 等 AI 工具进入本项目时的**统一入口**。
-> 它不替代 `ai-context/` 下的详细文档，而是路由与纪律声明。
->
+> 本文件是 CodeBuddy / WorkBuddy 进入本项目的**统一入口**，只放路由、铁律与加载纪律；细节在 `ai-context/rules/`，**按需读取，不要通读**。
 > 顶部 `SOP-VERSION` 标记用于「更新 SOP」时对比版本，请勿删除。
 
 ---
 
-## 复杂度分级（每次任务优先判定）★
+## 一、任务分级与规则加载（每次任务第一步）★
 
-收到开发任务后，**动手前先判定复杂度级别**，再决定加载多少规则。这是为了节省 token 成本：不是每个任务都需要加载全部约束和 Skill。
+> **L0-L3 是本 SOP 自定的标签，工具并不认识它**——只能按下面三步判，不要凭感觉。
+> 判完在**首条回复**自报：`判级 L2 ｜ 3 文件 ｜ 已读 frontend.md(样式规范)、review.md(五轴)`（同会话级别未变可省略）。用户据此能看出有没有漏读，并可当场纠正。
 
-| 级别 | 信号（满足任一） | 规则加载策略 | 说明 |
-|------|-----------------|------------|------|
-| **L0 极简** | 拼写修正、注释修改、单行配置、纯文案改动、README/文档更新 | **不加载任何 ai-context/rules/**，直接执行 | 本文件的铁律已足够兜底 |
-| **L1 简单** | 单文件小改、明确的小修复、样式微调（改颜色/间距/字号） | 仅加载 `ai-context/rules/frontend.md` | 跳过框架 rules 和 Skill，跳过 skill-routing |
-| **L2 常规** | 多文件变动、正常功能开发、大部分日常任务 | **完整 SOP**（当前默认行为） | 按下方导航逐层读取 |
-| **L3 复杂** ★ | 新功能、架构变更、重构、跨模块改动、用户说「复杂/大型」、涉及鉴权/支付 | **完整 SOP + 进入规划模式** | 必须读完 `ai-context/rules/planning.md`，方案确认后才写代码 |
+**① 数改动面**：只改文案 / 注释 / 文档 / 单个配置值 → **L0**；1-2 个文件的小改（样式微调、小逻辑修复）→ **L1**；3-5 个文件，或新增一个组件 / 一次接口调用 → **L2**；>5 个文件，或跨模块 / 重构 → **L3**。
+**② 查高风险面**：鉴权 / 支付 / 请求拦截器 / 构建配置 / 接口协议或数据结构 / 依赖大版本升级 / **全局状态或路由的机制改动**（新增一条路由或一个 selector 不算）——命中任一**直接 L3**，不看文件数。
+**③ 兜底**：判不准按 **L2** 走（不猜 L3，避免过度流程）；执行中用户说「很简单」→ 降级，「要仔细规划」→ 升 L3。
 
-**判定规则：**
-- AI 收到任务后，根据上表信号**自行判定**级别，并告知用户：「判定为 L2 常规任务，开始按完整 SOP 执行」
-- **用户可随时纠正**：「这其实很简单」→ 降级；「这个需要仔细规划」→ 升级到 L3
-- 不确定时选**更高级别**（保守策略：宁愿多读规则，不要漏约束）
+**加载表**（文件均在 `ai-context/rules/`；「必读」≠ 整文件读，按 §二 取章节）：
 
-> 为什么有这套分级：大部分任务不需要加载全部 rules + 15+ 个 Skill 的上下文。L0/L1 级任务如果每次都拉满全部约束，token 成本会显著上升。分级让简单任务轻装上阵，复杂任务深度武装。
+| 级别 | 必读 | 按需（命中才读） | 跳过 |
+|------|------|----------------|------|
+| **L0 极简** | 无（本文件铁律已够） | — | 全部 rules |
+| **L1 简单** | `frontend.md`「样式规范」；`review.md`「五轴审查」（全文 2.1K）；`testing.md`「必过关卡」；`workflow.md`「铁律 4」 | — | 框架 rules、planning、skill-routing、platform |
+| **L2 常规** | L1 全部 + `frontend.md` 其余节、框架 rules 命中节、`workflow.md`、`skill-routing.md`「一、任务分类矩阵」、`testing.md` 全文 | `platform.md`（多端）、`quality-baseline.md`（性能敏感）、`project-map.md`（定位文件） | `planning.md`（非 L3） |
+| **L3 复杂** ★ | L2 全部 + `planning.md` | `specs/TEMPLATE.md` | — |
 
----
+- 非前端项目没有 `frontend.md`，其职责由 `framework-generic.md` 承载。
+- 各级流程差异、任务分类 → `ai-context/rules/workflow.md`「复杂度预检」。
 
-## 项目一句话
+## 二、读取纪律（上下文成本控制）★
+
+1. **先索引后读**：读 rules 前先 `grep -n "^## " <文件>` 取章节表，再用 `offset/limit` 只读命中章节，**不整文件读**。
+2. **不重读**：同一会话已读过的内容不重读；需要回顾时引用已有结论，而不是重贴原文。
+3. **项目文档默认不读**：`project-map.md` / `prd.md` / `design.md` 只在定位文件、确认业务背景、改特有机制时按章节查。
+4. **低频文件按需**：`platform.md`（多端）、`skill-routing.md`（Skill 调度）、`quality-baseline.md`（发版前）仅在相关任务读。
+5. **长任务留痕**：多轮任务把已确认结论写进 `specs/<slug>/tasks.md` 或回复摘要，避免为「回忆」重读原文。
+
+## 三、文件索引（按需查阅，勿逐个通读）
+
+| 文件 | 管什么 | 何时读 |
+|------|--------|--------|
+| `ai-context/project-map.md` | 目录地图、路由注册点、构建命令 | 定位文件 / 新增页面 |
+| `ai-context/prd.md` | 产品定位、模块清单 | 业务背景不明 |
+| `ai-context/design.md` | 架构与项目特有机制 | 改架构 / 动特有机制 |
+| `ai-context/quality-baseline.md` | 质量基线（体积/覆盖率/tsc/lint） | 性能敏感改动 / 发版前 |
+| `rules/frontend.md` | 代码风格、设计决策卡、NFR | 前端任务（L1+） |
+| `rules/react.md` / `vue.md` / `framework-generic.md` | 框架专属约束（按项目生成其一，第 0 节为项目代码风格） | 对应框架任务（L2+） |
+| `rules/workflow.md` | 流程纪律、分级细则、任务分类、复盘 | L2/L3 |
+| `rules/planning.md` | L3 四阶段规划（理解→设计→拆解→自审） | L3 |
+| `rules/testing.md` | 验证基线 | 实现完成前 |
+| `rules/review.md` | 五轴 Review 清单 | 提交前 |
+| `rules/skill-routing.md` | Skill 调度与降级策略 | 需激活 Skill |
+| `rules/platform.md` | 多端部署与验证矩阵 | 多端项目 |
+
+> 外部 Skill 为一次性安装（React：`npx skills add vercel-labs/agent-skills`；Vue：`npx skills add vuejs-ai/skills`），详见 `rules/skill-routing.md`；未安装会自动降级，不影响开发。
+
+## 四、项目一句话
 {{PROJECT_ONELINER}}
 
-## 核心认知（入手前必读）
-<!-- AI-INSERT: 如项目有特殊架构（路由注入、全局单例、微前端等），在此逐条列出，每条一两句话。 -->
+## 五、核心认知（只放结论）
+<!-- AI-INSERT: 特殊架构（路由注入、全局单例、微前端等）逐条列结论，每条一两句；详解放 ai-context/design.md，此处不展开。 -->
 {{CORE_KNOWLEDGE}}
 
-## AI 协作铁律（来自项目约定）
+## 六、AI 协作铁律
 <!-- AI-INSERT: 从阶段 1 用户回答中提取 3-5 条核心规则 -->
 {{AI_RULES}}
 
-## 进入项目后请依次读取
-- `ai-context/project-map.md` —— 目录与页面注册方式
-- `ai-context/prd.md` —— 产品定位与模块清单
-- `ai-context/design.md` —— 架构与特有机制
-- `ai-context/rules/frontend.md` —— 前端通用代码风格（**前端项目必读**；后端项目不适用，见下方 `framework-generic.md`）
-- `ai-context/rules/react.md` —— React 框架专属约束（**仅 React 项目**生成，第 0 节为项目代码风格）
-- `ai-context/rules/vue.md` —— Vue 框架专属约束（**仅 Vue 项目**生成）
-- `ai-context/rules/framework-generic.md` —— 其他前端框架（Svelte/Angular/Solid/Vanilla）与后端语言（Python/Go/Java/...）的通用工程规则（**非 React/Vue 项目生成**，第 0 节为项目代码风格）
-- `ai-context/rules/platform.md` —— 多端部署与验证矩阵（多端项目必读）
-- `ai-context/rules/workflow.md` —— 开发流程纪律
-- `ai-context/rules/planning.md` —— 复杂任务规划模式（**L3 任务必读**，四阶段：理解→设计→拆解→自审）
-- `ai-context/rules/testing.md` —— 验证基线
-- `ai-context/rules/skill-routing.md` —— 技能调度规则（**L2/L3 任务实现前必读**，决定激活哪些 Skill）
+## 七、大型 / 高风险任务
+- **L3** → 走 `rules/planning.md` 四阶段，产物写 `specs/<slug>/`，**方案确认前不写代码**。
+- **L2 但较大** → `specs/` 四件套（`proposal` / `design` / `tasks` / `acceptance`，模板见 `specs/TEMPLATE.md`）。
+- **L0/L1** → 无需 spec，实现后贴验证证据。
 
-## 外部 Skill（推荐安装）
-- **React 项目**推荐安装 Vercel 官方 Skill：`npx skills add vercel-labs/agent-skills`
-  - react-best-practices（40+ 性能规则）/ composition-patterns（组件设计）/ web-design-guidelines（UI 审查）
-- **Vue 项目**推荐安装 Vue 官方 Skill：`npx skills add vuejs-ai/skills`
-  - vue-best-practices / vue-router-best-practices / vue-pinia-best-practices / create-adaptable-composable 等（共 8 个）
-- **其他框架 / 语言**：本 SOP 没有为其预置官方 Skill，但 `rules/framework-generic.md` 的「第 0 节代码风格扫描」会从真实代码提取项目约定，第 2 节填入该栈官方最佳实践；如有社区 Skill（如 Svelte/Vue 之外的框架）可自行安装，SOP 通过 `skill-routing.md` 自动降级兼容
-- 未安装不影响开发，SOP 会自动降级使用项目 rules + 通用原则
+## 八、本地记忆（不入库）
+- WorkBuddy `.workbuddy/memory/`；CodeBuddy `.codebuddy/`（均已在 `.gitignore`）。
+- 好实践写入 `ai-context/rules/` 对应文件的「已知陷阱」节，随仓库提交，不要只留在本地记忆。
 
-## 大型 / 高风险任务 → 走规划模式 或 specs
+## 九、本项目对 SOP 的裁剪（升级时保留）
+<!-- AI-INSERT: 逐条声明本项目主动删减/调整的标准 SOP 内容（如不生成 demo/、跳过某 rules 文件、review 五轴改为四轴等），一行一条。供「更新 SOP」时识别并保留，避免被新模板回填。无裁剪填「暂无」。 -->
+{{SOP_CUSTOMIZATIONS}}
 
-**L3 复杂任务**：进入 `rules/planning.md` 所描述的四阶段规划流程（理解→设计→拆解→自审），方案确认后再实现。产出写入 `specs/<slug>/`。
+## 十、SOP 健康检查
 
-**L2 常规但较大的任务**：走 `specs/` 四件套：`proposal` / `design` / `tasks` / `acceptance`（模板见 `specs/TEMPLATE.md`）。
+`node scripts/sop-check.mjs`（加 `--strict` 让 WARN 阻断、`--json` 输出机器可读）——检查结构、版本漂移、占位符、TODO、**规则体量预算**、specs 四件套、代码熵（需 `sop.config.json` 含扫描字段，否则静默）。
 
-**L0/L1**：无需 spec，直接实现后贴验证证据即可。
-
-## 本地记忆（不入库）
-- WorkBuddy：`.workbuddy/memory/`（已被 `.gitignore` 忽略）
-- CodeBuddy：`.codebuddy/`（本地记忆部分已被 `.gitignore` 忽略）
-- **好实践请写入 `demo/`，随仓库提交**，不要只留在本地记忆。
-
-## SOP 健康检查（CI / 提交前可选）
-- `node scripts/sop-check.mjs` — 检查 AGENTS.md/版本标记/必要 rules/未填占位符（FAIL）+ 版本漂移/TODO 残留/超长文件/重复段落/NFR 缺失（WARN）
-- `node scripts/sop-check.mjs --strict` — 警告也计为失败，适合接入 CI 作为硬门禁
-- AI 在自测阶段可主动运行此脚本并把结果贴进 PR
+「更新 SOP」时 `scripts/sop-check.mjs` **用 kit 最新版整体覆盖**（脚本无项目特定内容）。

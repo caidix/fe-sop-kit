@@ -1,9 +1,9 @@
 ---
 name: sop-init-frontend
-description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意前端项目后调用，自动扫描项目结构并生成 AGENTS.md + ai-context/ + rules/ + specs/ + demo/。适配 React/Vue/Taro/Next.js 等主流前端框架。
+description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意前端项目后调用，自动扫描项目结构并生成 AGENTS.md + ai-context/ + rules/ + specs/ + quality-baseline（demo/ 可选）。适配 React/Vue/Taro/Next.js 等主流前端框架。
 ---
 
-<!-- SOP-VERSION: 3.5 -->
+<!-- SOP-VERSION: 3.8 -->
 
 # sop-init-frontend — 前端项目 AI 协作脚手架初始化（可插拔）
 
@@ -88,6 +88,8 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 10. **Vercel 官方 Skill**：若扫描到已安装 Vercel 的 react-best-practices / web-design-guidelines / composition-patterns，告知用户"检测到已安装，SOP 将自动激活"。若未安装，建议用户执行 `npx skills add vercel-labs/agent-skills`（React 项目）。本 SOP 的 `ui-skill-router` 调度器可在未安装时自动降级。
 11. **Vue 官方 Skill**：若扫描到已安装 Vue 官方的 vue-best-practices / vue-router-best-practices 等，告知用户"检测到已安装，SOP 将自动激活"。若未安装，建议用户执行 `npx skills add vuejs-ai/skills`（Vue 项目）。本 SOP 的 `ui-skill-router` 调度器可在未安装时自动降级。
 12. **UI Skill 环境**：若扫描到用户已安装 UI Skill（interface-design / ui-ux-pro-max / impeccable / taste-skill），向用户确认：是否在 UI 密集任务中启用它们？若未安装，提示可安装以获得更好的 UI 开发体验。
+13. **demo/ 示例库（可选，默认不生成）**：询问用户是否需要 `demo/` 目录沉淀可复用的好实践示例。默认**不生成**——实践沉淀默认走各 rules 的「已知陷阱」节（多数稳定项目最终会删除 demo/，改为纯 rules 承载）；用户明确确认需要示例库才生成 `demo/README.md`，并在 AGENTS.md 保留对应引用。
+14. **代码熵硬门禁（可选，默认开启）**：向用户说明——可生成 `sop.config.json` 让 `sop-check` 额外扫描源码（超长文件 / console 残留 / any 类型 / 危险 API / 代码 TODO），把「验证优于说教」落到代码层。默认生成并启用（阈值取模板默认：`maxFileLines: 300`、`console`/`any`/`dangerousApi` 开、`todoComment` 关）；用户若担心误报可选择不生成——不生成则代码熵检查完全静默，不影响其余检查。生成时按项目实情调整 `srcDirs` / `codeExtensions`。
 
 ---
 
@@ -99,10 +101,12 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 ```
 <project-root>/
 ├── AGENTS.md                          # 从 templates/AGENTS.md.template
+├── sop.config.json                    # 【可选，默认生成】从 templates/sop.config.json.template（启用代码熵硬门禁）
 ├── ai-context/
 │   ├── project-map.md                 # 从 templates/ai-context/project-map.md.template
 │   ├── prd.md                         # 从 templates/ai-context/prd.md.template
 │   ├── design.md                      # 从 templates/ai-context/design.md.template
+│   ├── quality-baseline.md            # 从 templates/ai-context/quality-baseline.md.template（初始化时采一次基线）
 │   └── rules/
 │       ├── frontend.md                # 从 templates/ai-context/rules/frontend.md.template
 │       ├── platform.md                # 从 templates/ai-context/rules/platform.md.template
@@ -117,16 +121,20 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 ├── specs/
 │   ├── README.md                      # 从 templates/specs/README.md.template
 │   └── TEMPLATE.md                    # 从 templates/specs/TEMPLATE.md.template
-├── demo/
+├── demo/                              # 【可选】仅当用户在阶段 1 确认需要示例库时生成
 │   └── README.md                      # 从 templates/demo/README.md.template
 └── scripts/
-    └── sop-check.mjs                  # 从本 kit scripts/sop-check.mjs 复制（SOP 健康检查 / CI 硬门禁）★
+    └── sop-check.mjs                  # 从本 kit scripts/sop-check.mjs **整体覆盖复制**（SOP 健康检查 / CI 硬门禁）★
 ```
 
 ### 生成要求
+- **AGENTS.md**：**保持精简**——生成后目标 < 4,500 字符（`sop-check` 按此预算告警）。只放分级加载矩阵、读取纪律、文件索引、铁律与裁剪声明，细节一律放 rules。**§一 的「三步判级法」（数改动面 → 查高风险面 → 兜底）必须完整保留**——阈值可按项目调（如把 5 文件改成 3 文件），但不能删步骤或退回「只看信号描述」，否则 agent 无法稳定判级。填充「本项目对 SOP 的裁剪」→ `{{SOP_CUSTOMIZATIONS}}`（默认「暂无」；用户在阶段 1 第 13 问选择不生成 demo/ 时，写明「不生成 demo/（实践沉淀走 rules 已知陷阱）」；有其他裁剪逐条列出）。**文件索引表只保留本项目实际生成的框架文件**（React 项目删掉 vue/generic 行，反之同理）。
 - **project-map.md**：精确标注路由注册点（手写 / file-based / 插件注入），附构建命令速查。
 - **design.md**：若扫描到特殊机制（插件注入、全局单例、微前端等），必须用独立章节详解。
-- **rules/frontend.md**：从真实代码提取风格（导出方式、命名规范、hooks 模式，标注风格来源）。**填充「非功能需求 (NFR)」节** → `{{PERF_BUDGET}}` / `{{SECURITY_BASELINE}}` / `{{ACCESSIBILITY_RULES}}` / `{{COMPAT_MATRIX}}` / `{{I18N_RULES}}`（从构建配置/用户口述提取；未设预算填「未设预算」，不留空）。
+- **quality-baseline.md**：按阶段 0 扫描到的命令填充 `{{TYPECHECK_COMMAND}}` / `{{BUILD_COMMAND}}` / `{{TEST_COVERAGE_COMMAND}}` / `{{LINT_COMMAND}}`；**实际跑一次**把数值填入基线表（不要编造，跑不出填「未采集」并注明原因）；`{{REGRESSION_GUARD_1/2}}` 定义「较基线劣化多少即拦截」，至少给一条具体阈值（无则填「暂不设红线」）。
+- **sop.config.json**（若阶段 1 第 14 问选择生成）：按项目实情填 `srcDirs` / `codeExtensions`（默认 `src` + 主流前端扩展名，后端项目改相应源码目录与扩展名）；其余阈值取模板默认。若用户选择不生成，跳过此文件。
+- **rules/*.md（通用）**：保留顶部「职责 + 按节读」提示块（≤2 行，**不要展开成静态目录**——目录用 `grep -n "^## "` 动态获取，静态目录会漂移且白占字符）；**删除与本项目无关的章节**（另一框架的适配说明、未安装 Skill 的详细用法），使 `ai-context/rules/` 合计 < 40,000 字符、单文件 < 10,000 字符——`sop-check` 会按此预算告警。注意 React 项目按模板生成后约 34,000 字符（`skill-routing.md` 9,600 最大），留给「已知陷阱」的余量约 6,000 字符，所以**删无关章节要真删**，不能只留标题。裁剪决定写入 AGENTS.md「本项目对 SOP 的裁剪」，升级时保留。
+- **rules/frontend.md**：从真实代码提取风格（导出方式、命名规范、hooks 模式，标注风格来源）。**填充「非功能需求 (NFR)」节** → `{{PERF_BUDGET}}` / `{{SECURITY_BASELINE}}` / `{{ACCESSIBILITY_RULES}}` / `{{COMPAT_MATRIX}}` / `{{I18N_RULES}}`（从构建配置/用户口述提取；未设预算填「未设预算」，不留空）。**填充「设计决策卡」四问** → `{{STATE_PLACEMENT}}` / `{{COMPONENT_SPLIT}}` / `{{EFFECT_BOUNDARY}}` / `{{RACE_HANDLING}}`（从真实代码提取约定；项目尚无先例的按推荐默认填并标注「建议」，落地后回填为项目约定）。
 - **rules/skill-routing.md**：根据扫描到的 UI Skill 可用性，填充降级策略中的安装状态标记。
 - **rules/planning.md**：从模板直接生成（全静态，无需扫描填充），定义 L3 复杂任务四阶段规划流程（理解→设计→拆解→自审）。所有项目生成相同内容。
 - **rules/react.md**（仅 React 项目）：填充第 0 节「项目 React 代码风格」→ `{{REACT_COMPONENT_STYLE}}` / `{{REACT_FILE_ORGANIZATION}}` / `{{REACT_EXPORT_IMPORT}}` / `{{REACT_TYPE_PREFERENCES}}`（从阶段 0 扫描的真实代码中提取，标注来源文件；若样本不足且用户选了"不保留风格"，填入 React 官方推荐写法并标注）；填充 `react` 版本号 → `{{REACT_VERSION_RULES}}`；填充状态管理深层约定 → `{{STATE_MANAGEMENT_DEEP}}`（不仅填命名约定，还要从实际代码中提取 store 文件组织方式和 selector 写法）；填充用户额外约束 → `{{REACT_USER_CONSTRAINTS}}`。
@@ -198,7 +206,7 @@ SOP 初始化后，日常任务按以下阶段流转。AI 在每阶段自动读�
 AI 在对应阶段的行为：
 | 阶段 | 触发条件 | AI 动作 |
 |------|----------|---------|
-| **复杂度预检** ★ | 收到任何开发任务 | 按 AGENTS.md「复杂度分级」表判定 L0-L3，告知用户 |
+| **复杂度预检** ★ | 收到任何开发任务 | 按 AGENTS.md §一「三步判级法」判定 L0-L3，按加载表取规则，并在首条回复自报「判级 + 已读文件」 |
 | **澄清** | 收到 L1-L3 任务 | 先问「新增/修改 + 功能 + 落点」 |
 | **任务分类** ★ | 澄清完成 | 读 `skill-routing.md` → 判定任务类型 → 激活对应 Skill 集（ui-skill-router 调度 UI/Vercel Skill + 框架 Skill 标记） |
 | **规划** ★ | L3 复杂任务 | 读 `planning.md` → 四阶段（理解→设计→拆解→自审）→ 产出 `specs/<slug>/` 并等用户批准。**方案确认前不写代码** |
@@ -292,11 +300,17 @@ AI 在对应阶段的行为：
 | 各 rules 文件的「用户声明的额外约束 / User Constraints」章节 | **保留**，不因模板升级而覆盖（用户口述内容是项目的永久资产） |
 | `project-map.md` / `design.md` / `prd.md` 中由扫描生成的项目事实 | **保留** |
 | 用户手写的章节 / 注释（不在模板骨架中的内容） | **保留** |
-| 模板新增的章节 / 文件（如 v2→v3 新增 `skill-routing.md`、`planning.md`；v3.3→v3.4 新增 `scripts/sop-check.mjs`） | **新增**，按模板骨架生成并填充（脚本类文件直接复制） |
+| 模板新增的章节 / 文件（如 v2→v3 新增 `skill-routing.md`、`planning.md`；v3.3→v3.4 新增 `scripts/sop-check.mjs`） | **新增**，按模板骨架生成并填充 |
+| `AGENTS.md` 加载章节的结构调整（如 v3.8 把「依次读取全部文件」改为「三步判级法 + 加载表 + 读取纪律 + 文件索引」） | **按新模板重排该区块**，删除旧的「依次读取」清单（新索引表已覆盖）；**「三步判级法」必须保留**（可调阈值，不可删步骤）；铁律、核心认知、裁剪声明、用户手写章节保留 |
+| **脚本类文件**（`scripts/sop-check.mjs` 等，无项目特定内容） | **一律以 kit 最新版整体覆盖**，无论新增还是升级。对比项目脚本头部 `SOP-CHECK-VERSION` 与 kit 版本，落后即覆盖——否则文档宣称的检查能力会与实际脚本脱节 |
 | 模板结构调整（如生命周期新增阶段） | **更新** `AGENTS.md` 导航 + `workflow.md` 阶段表 |
 | `rules/frontend.md` 等通用规则模板的措辞修订 | **合并**：以新模板为准，但保留项目特定的 INSERT 内容 |
 
-### 更新流程
+### 升级分两步（务必向用户讲清楚这个模型）
+- **第一步（kit 侧，一次性）**：用户把本 kit 更新到最新版（`git pull`）+ 重跑 `scripts/install.sh` 升级 Skill。Skill 是用户级安装的，升级一次所有项目通用——**这一步不在项目内执行**。
+- **第二步（项目侧，逐个项目）**：在每个已初始化的项目里触发本流程，把新版内容同步刷新到该项目。以下「更新流程」讲的都是第二步。
+
+### 更新流程（第二步：项目侧同步）
 ```
 读项目 SOP-VERSION
   │
@@ -312,13 +326,25 @@ AI 在对应阶段的行为：
   │     └─ 把提取的内容回填到新模板对应位置
   │
   ├─→ 新增模板中多出来的文件（之前版本没有的）
+  │     ├─ 若新增 ai-context/quality-baseline.md：实跑命令采一次质量基线填入，
+  │     │   跑不出填「未采集」并注明原因；若用户在裁剪区块声明不要则跳过
+  │     └─ 若版本引入新可选配置（如 v3.7 的 sop.config.json 代码熵门禁）：
+  │          询问用户是否启用；不启用则不生成（代码熵检查自动静默）
+  │
+  ├─→ 脚本类文件（scripts/sop-check.mjs）以 kit 最新版整体覆盖
   │
   ├─→ 更新 AGENTS.md 的 SOP-VERSION 标记 + 导航链接
   │
-  └─→ 输出变更报告：
-        "新增：planning.md / skill-routing.md / scripts/sop-check.mjs
-         更新：workflow.md（新增任务分类阶段）/ frontend.md（新增 NFR 节）/ review.md（可执行检查）
-         保留：你的项目特定内容未受影响"
+  ├─→ 跑一次 node scripts/sop-check.mjs 确认升级后健康（有 WARN 就说明原因或修复）
+  │     └─ 出现「规则体量预算」告警时：报告 AGENTS.md / rules 的实际字符数与预算，
+  │        给出具体建议（移细节出 AGENTS.md、删无关框架章节、按主题拆分）；
+  │        用户决定保留现状 → 在 AGENTS.md 裁剪区块声明「接受当前体量」以免反复告警
+  │
+  └─→ 输出变更报告 + 提示用户在项目里自行 commit：
+        "新增：planning.md / quality-baseline.md / sop.config.json（可选）
+         更新：workflow.md / frontend.md（设计决策卡）/ review.md / sop-check.mjs（整体覆盖）
+         保留：你的项目特定内容未受影响
+         请在项目仓库提交：chore: 更新 SOP 至 vX.Y（此 commit 即回退点）"
 ```
 
 ### 框架 / UI Skill 同步
@@ -327,5 +353,5 @@ AI 在对应阶段的行为：
 - 若用户之前手动把 Skill 拷贝到了项目级 `.workbuddy/skills/`，需手动重新拷贝或删除项目级副本以回退到用户级。
 
 ### 安全兜底
-- 更新前自动对 `ai-context/` 做一次 git 提交或备份（若有 git），防止合并出错丢失内容。
-- 任何无法安全合并的冲突（如用户大量改写了模板骨架）→ 暂停并询问用户：保留用户版 / 采用新模板 / 手动合并。
+- **不做自动 git 备份 / 代提交**：kit 只改文件，不碰项目 git。变更报告输出后，**提示用户在项目仓库自行提交 commit**（如 `chore: 更新 SOP 至 vX.Y`）——用户自己的这个 commit 就是唯一回退点，可用 `git revert` 整体回退。
+- 任何无法安全合并的冲突（如用户大量改写了模板骨架）→ 暂停并询问用户：保留用户版 / 采用新模板 / 手动合并；冲突未解决前不要输出「升级完成」。
