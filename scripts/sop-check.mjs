@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// SOP-CHECK-VERSION: 3.8
+// SOP-CHECK-VERSION: 3.9
 // ==============================================================================
 // sop-check.mjs — SOP 健康检查（硬门禁 + 熵检测）
 //
@@ -18,10 +18,10 @@
 // ==============================================================================
 
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 
-const KIT_VERSION = "3.8"; // 与 kit 当前版本对齐，用于漂移检测
-const SCRIPT_VERSION = "3.8"; // 与头部 SOP-CHECK-VERSION 标记一致
+const KIT_VERSION = "3.9"; // 与 kit 当前版本对齐，用于漂移检测
+const SCRIPT_VERSION = "3.9"; // 与头部 SOP-CHECK-VERSION 标记一致
 const cwd = process.cwd();
 const args = new Set(process.argv.slice(2));
 const STRICT = args.has("--strict");
@@ -50,6 +50,11 @@ function walk(dir, acc = []) {
 
 // 统一输出为 / 分隔（Windows 下 relative() 会给反斜杠，与代码熵检查的写法不一致）
 const rel = (p) => relative(cwd, p).replace(/\\/g, "/");
+
+// specs 活跃区 vs 归档区：archive/ 是冻结区，不再要求填占位符/四件套
+const specsDir = join(cwd, "specs");
+const specsArchiveDir = join(specsDir, "archive");
+const inSpecsArchive = (p) => p === specsArchiveDir || p.startsWith(specsArchiveDir + sep);
 
 // 取某个二级标题下的内容（用于只看「裁剪」区块，避免索引表里的文件名被当成声明）
 function sectionOf(md, keyword) {
@@ -111,7 +116,7 @@ const placeholderRe = /\{\{[A-Z0-9_]+\}\}/g;
 const scanFiles = [
   agentsPath,
   ...walk(join(cwd, "ai-context")),
-  ...walk(join(cwd, "specs")),
+  ...walk(specsDir).filter((p) => !inSpecsArchive(p)),
 ];
 for (const p of scanFiles) {
   const txt = readText(p);
@@ -234,8 +239,8 @@ if (!existsSync(baselinePath) && !baselineOptOut) {
 // ── 8. specs 健康度（WARN）──
 // 8a. 占位符残留：同样不用 /g 正则的 .test()，避免 lastIndex 串扰。
 const placeholderHitRe = /\{\{[A-Z0-9_]+\}\}/;
-const specsDir = join(cwd, "specs");
 for (const p of walk(specsDir)) {
+  if (inSpecsArchive(p)) continue; // 归档区冻结，不再要求填占位符
   if (p.endsWith("TEMPLATE.md") || p.endsWith("README.md")) continue;
   const txt = readText(p);
   if (!txt) continue;
@@ -243,7 +248,7 @@ for (const p of walk(specsDir)) {
 }
 // 8b. 四件套完整性：每个 spec 目录应有 proposal/design/tasks/acceptance 四文件。
 // 豁免：proposal.md 顶部状态为「草稿」时不强制齐备（草稿允许只写一半）；
-// 建议：废弃的 spec 直接删除目录，不要留残缺半成品。
+// 建议：废弃的 spec 删除目录；已交付的 spec 满 90 天归档到 specs/archive/（8c 会提醒）。
 const SPEC_FILES = ["proposal.md", "design.md", "tasks.md", "acceptance.md"];
 // 跳过已知的非 spec 目录（不依赖日期命名，兼容自定义命名：只要不在跳过清单里就检查）
 const skipSpecDirs = /^(\.|archive|archived|_archive|assets|templates?|node_modules)$/i;
@@ -262,6 +267,49 @@ if (existsSync(specsDir)) {
     }
   }
 }
+
+// 8c. 生命周期：状态是否可判断、是否该归档、活跃区是否超编。
+// 时间用「目录内文件的最新 mtime」近似（git checkout 会重置 mtime，所以新克隆通常不告警——保守，不误伤）。
+const STATUS_ENUM = ["草稿", "已确认", "实现中", "待验证", "已交付"];
+const MAX_ACTIVE_SPECS = 8;
+const DRAFT_STALE_DAYS = 30;
+const DELIVERED_ARCHIVE_DAYS = 90;
+const newestMtime = (dir) => {
+  let newest = 0;
+  for (const p of walk(dir)) {
+    try { const m = statSync(p).mtimeMs; if (m > newest) newest = m; } catch { /* 忽略 */ }
+  }
+  return newest;
+};
+const activeSpecs = [];
+if (existsSync(specsDir)) {
+  for (const entry of readdirSync(specsDir)) {
+    if (skipSpecDirs.test(entry)) continue;
+    const dir = join(specsDir, entry);
+    let isDir = false;
+    try { isDir = statSync(dir).isDirectory(); } catch { /* 忽略 */ }
+    if (!isDir) continue;
+    const proposal = readText(join(dir, "proposal.md")) || "";
+    // 兼容两种历史写法：顶部 `状态：X` 与首段引用里的 `> 日期 · 状态：X`
+    const statusMatch = proposal.slice(0, 500).match(/状态[：:]\s*([^\s（(|]+)/);
+    const status = statusMatch ? statusMatch[1].replace(/[·．.。,，;；]+$/, "") : "";
+    const ageDays = Math.floor((Date.now() - newestMtime(dir)) / 86400000);
+    activeSpecs.push(entry);
+    if (!status) {
+      warn(`specs/${entry} 缺「状态：」行——不写状态就无法判断该不该归档，请从 ${STATUS_ENUM.join(" / ")} 中选一个。`);
+    } else if (!STATUS_ENUM.includes(status)) {
+      warn(`specs/${entry} 状态「${status}」不在枚举内（${STATUS_ENUM.join(" / ")}）——检查器无法判断归档时机。`);
+    } else if (status === "已交付" && ageDays > DELIVERED_ARCHIVE_DAYS) {
+      warn(`specs/${entry} 已交付 ${ageDays} 天未归档——git mv 到 specs/archive/ 并在 specs/INDEX.md 登记。`);
+    } else if (status === "草稿" && ageDays > DRAFT_STALE_DAYS) {
+      warn(`specs/${entry} 草稿停滞 ${ageDays} 天——推进，或删除目录（git 历史仍保留）。`);
+    }
+  }
+}
+if (activeSpecs.length > MAX_ACTIVE_SPECS) {
+  warn(`活跃 spec ${activeSpecs.length} 个 > 阈值 ${MAX_ACTIVE_SPECS}——先归档「已交付」的，否则 specs/ 会逐渐变成垃圾场。`);
+}
+metrics.activeSpecs = activeSpecs.length;
 
 // ── 9. 代码熵检查（WARN，需项目根 sop.config.json 显式启用）──
 // 设计取舍：代码扫描天生有误报，故默认关闭；只有项目放了 sop.config.json 才启用。

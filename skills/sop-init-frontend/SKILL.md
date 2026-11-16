@@ -3,7 +3,7 @@ name: sop-init-frontend
 description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意前端项目后调用，自动扫描项目结构并生成 AGENTS.md + ai-context/ + rules/ + specs/ + quality-baseline（demo/ 可选）。适配 React/Vue/Taro/Next.js 等主流前端框架。
 ---
 
-<!-- SOP-VERSION: 3.8 -->
+<!-- SOP-VERSION: 3.9 -->
 
 # sop-init-frontend — 前端项目 AI 协作脚手架初始化（可插拔）
 
@@ -120,7 +120,8 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 │       └── framework-generic.md       # 从 templates/ai-context/rules/framework-generic.md.template（其他前端框架/后端语言/未知，分类生成）
 ├── specs/
 │   ├── README.md                      # 从 templates/specs/README.md.template
-│   └── TEMPLATE.md                    # 从 templates/specs/TEMPLATE.md.template
+│   ├── TEMPLATE.md                    # 从 templates/specs/TEMPLATE.md.template
+│   └── INDEX.md                       # 从 templates/specs/INDEX.md.template（归档索引，初始只留表头）
 ├── demo/                              # 【可选】仅当用户在阶段 1 确认需要示例库时生成
 │   └── README.md                      # 从 templates/demo/README.md.template
 └── scripts/
@@ -142,6 +143,7 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 - **rules/framework-generic.md**（其他前端框架 / 后端语言 / 未知项目）：填充 `{{FRAMEWORK_NAME}}`（Svelte/Angular/Solid/Vanilla/Python/Go/Java/...）与 `{{FRAMEWORK_CATEGORY}}`（前端框架 / 后端语言）；第 0 节从真实代码采样提取 → `{{GENERIC_DECLARATION_STYLE}}` / `{{GENERIC_FILE_ORGANIZATION}}` / `{{GENERIC_IMPORT_CONVENTIONS}}` / `{{GENERIC_NAMING_FORMAT}}`（标注来源文件，样本不足时按阶段 1 第 8 问处理）；第 1 节通用工程纪律填充 → `{{GENERIC_ASYNC_RULES}}` / `{{GENERIC_LOGGING}}`；第 2 节填入该框架/语言的官方最佳实践与常见陷阱 → `{{FRAMEWORK_SPECIFIC_LAWS}}`（AI 依据检测到的技术栈生成）；用户额外约束 → `{{GENERIC_USER_CONSTRAINTS}}`；NFR 五占位同 `frontend.md`；已知陷阱 → `{{GENERIC_TRAPS}}`。**后端项目不生成 `frontend.md`**，质量约束完全由本文件 NFR 节承载。
 - **rules/testing.md**：无单测项目 → 验证基线 = `类型检查 + 构建`，补自测清单。
 - **rules/platform.md**：多端项目必须列出部署矩阵 + 每端验证命令。
+- **specs/**：`README.md` 填 `{{SPEC_TRIGGER}}`（从 workflow 的大/高风险判据复制）；`INDEX.md` **删掉模板里的示例行**，只留表头与说明（归档时才追加）；不预建 `archive/` 目录（首次归档时创建）。
 - **.gitignore**：在项目根或子项目 `.gitignore` 追加 `.workbuddy/` `.codebuddy/` 行。
 
 ---
@@ -300,7 +302,9 @@ AI 在对应阶段的行为：
 | 各 rules 文件的「用户声明的额外约束 / User Constraints」章节 | **保留**，不因模板升级而覆盖（用户口述内容是项目的永久资产） |
 | `project-map.md` / `design.md` / `prd.md` 中由扫描生成的项目事实 | **保留** |
 | 用户手写的章节 / 注释（不在模板骨架中的内容） | **保留** |
-| 模板新增的章节 / 文件（如 v2→v3 新增 `skill-routing.md`、`planning.md`；v3.3→v3.4 新增 `scripts/sop-check.mjs`） | **新增**，按模板骨架生成并填充 |
+| 模板新增的章节 / 文件（如 v2→v3 新增 `skill-routing.md`、`planning.md`；v3.3→v3.4 新增 `scripts/sop-check.mjs`；v3.9 新增 `specs/INDEX.md`） | **新增**，按模板骨架生成并填充 |
+| `specs/README.md` 的生命周期章节（v3.9：活跃 / 归档 / 废弃 + 阈值） | **用新版覆盖该章节**（无项目特定内容）；若项目已有自己的归档约定，保留项目版并在 AGENTS.md「裁剪」声明 |
+| `specs/` 下已有大量历史 spec | **不做自动归档**（会改动 git 历史）；只提示用户：「有 N 个已交付 spec 可归档，要现在处理吗？」得到确认后按 README 的规则执行 |
 | `AGENTS.md` 加载章节的结构调整（如 v3.8 把「依次读取全部文件」改为「三步判级法 + 加载表 + 读取纪律 + 文件索引」） | **按新模板重排该区块**，删除旧的「依次读取」清单（新索引表已覆盖）；**「三步判级法」必须保留**（可调阈值，不可删步骤）；铁律、核心认知、裁剪声明、用户手写章节保留 |
 | **脚本类文件**（`scripts/sop-check.mjs` 等，无项目特定内容） | **一律以 kit 最新版整体覆盖**，无论新增还是升级。对比项目脚本头部 `SOP-CHECK-VERSION` 与 kit 版本，落后即覆盖——否则文档宣称的检查能力会与实际脚本脱节 |
 | 模板结构调整（如生命周期新增阶段） | **更新** `AGENTS.md` 导航 + `workflow.md` 阶段表 |
