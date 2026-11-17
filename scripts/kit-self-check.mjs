@@ -13,7 +13,7 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const KIT_VERSION = "4.3";
+const KIT_VERSION = "4.4";
 const kitDir = process.cwd();
 const fails = [];
 const warns = [];
@@ -157,6 +157,44 @@ if (!/ls-remote/.test(sopCheckSrc)) {
 if (!/SOP-KIT-COMMIT/.test(sopCheckSrc)) {
   fail("sop-check.mjs 未读取 SOP-KIT-COMMIT 标记——远端检测无法与项目记录的 commit 对比。");
 }
+// v4.4：AGENTS.md 体量检查必须是「分级 + 结构性」，不能是单一阈值。
+// 单一阈值（4500）实测把两个真实项目（5553 / 10814 字符，且与 rules 重复率 0%）
+// 全部判为超标，却指不出问题出在哪——只能逼人改配置或关检查。真正的膨胀信号是
+// 「与 rules 重复」和「单章独占」，这两项必须在检查里存在。
+if (!/agentsHardMaxChars/.test(sopCheckSrc)) {
+  fail("sop-check.mjs 缺少 agentsHardMaxChars 硬红线——AGENTS.md 体量只有软基线而无硬上限，等于完全不设防；也失去了区分「项目信息量大（合理）」与「真的失控（该 FAIL）」的能力。");
+}
+if (!/agentsDupRate/.test(sopCheckSrc)) {
+  fail("sop-check.mjs 未计算 AGENTS.md 与 rules 的段落重复率——单看总字符数无法区分「该下沉却没下沉」与「本项目信息量大」，检查会一直指错方向。");
+}
+if (!/agentsMaxSectionRatio/.test(sopCheckSrc)) {
+  fail("sop-check.mjs 未检测 AGENTS.md 单章占比——总长度超标时最该回答的问题是「哪一章把文件撑大的」，缺了它只能给出一个无指向的总数告警。");
+}
+// 预算默认值必须与 sop-check 的 BUDGETS 保持一致——两处不同步就会出现
+// 「kit 说 6000、脚本按 4500 判」的错位，检查与文档再次脱节。
+{
+  const cfgTpl = readText(join(tplRoot, "sop.config.json.template")) || "";
+  try {
+    const c = JSON.parse(cfgTpl);
+    const b = c.budgets || {};
+    if (b.agentsMaxChars !== 6000) fail(`sop.config.json.template 的 budgets.agentsMaxChars=${b.agentsMaxChars}，应为 6000——与 scripts/sop-check.mjs 的默认值不一致会导致初始化即告警。`);
+    if (b.agentsHardMaxChars !== 12000) fail(`sop.config.json.template 缺 budgets.agentsHardMaxChars=12000——项目将拿不到硬红线配置项。`);
+  } catch {
+    fail("sop.config.json.template 不是合法 JSON——预算配置无法生效。");
+  }
+}
+// 模板体量必须给「项目自有内容」留出余量：模板已占满软基线的话，
+// 项目一填自己的文件索引/仓库地图就立刻告警——这是设计缺陷而非项目问题。
+// 注意：软基线常量在下方第 7 节才声明，此处不可引用（const 暂时性死区会直接抛错），
+// 故用局部字面量并与下方 TPL_AGENTS_MAX 保持一致。
+{
+  const SOFT_BUDGET = 6000;
+  const tplAgents = readText(join(tplRoot, "AGENTS.md.template")) || "";
+  const n = tplAgents.length;
+  if (n > SOFT_BUDGET * 0.8) {
+    warn(`AGENTS.md.template 体量 ${n} 字符，已占软基线 ${SOFT_BUDGET} 的 ${(100 * n / SOFT_BUDGET).toFixed(0)}%——留给项目自有内容（文件索引、仓库地图、红线、命令）的余量不足 ${SOFT_BUDGET - n} 字符，项目初始化后必然立即告警。`);
+  }
+}
 // v4.3 修复：commit 可能被声明在两处（AGENTS.md 与 sop.config.json），
 // 初版写成「config 优先」，实测漏报——改了 AGENTS.md 而忘了 config，检测仍显示「已是最新」。
 // 正确做法是两处都收集、逐个比对，任一过期即报「有更新」。
@@ -210,7 +248,7 @@ for (const t of npxTargets) {
 // ── 7. 模板体量不超出它自己推广的预算（WARN）──
 // kit 若生成比预算更肥的模板，项目初始化后立刻被告警——自相矛盾。
 // 预算与 scripts/sop-check.mjs 的 BUDGETS 默认值保持一致。
-const TPL_AGENTS_MAX = 4500;
+const TPL_AGENTS_MAX = 6000;
 const TPL_RULE_MAX = 10000;
 const agentsTplPath = join(tplRoot, "AGENTS.md.template");
 if (existsSync(agentsTplPath)) {

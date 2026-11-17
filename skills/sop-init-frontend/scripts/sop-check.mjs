@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// SOP-CHECK-VERSION: 4.3
+// SOP-CHECK-VERSION: 4.4
 // ==============================================================================
 // sop-check.mjs — SOP 健康检查（硬门禁 + 熵检测 + 设计体系检测）
 //
@@ -21,8 +21,8 @@ import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { execFileSync } from "node:child_process";
 
-const KIT_VERSION = "4.3"; // 与 kit 当前版本对齐，用于漂移检测
-const SCRIPT_VERSION = "4.3"; // 与头部 SOP-CHECK-VERSION 标记一致
+const KIT_VERSION = "4.4"; // 与 kit 当前版本对齐，用于漂移检测
+const SCRIPT_VERSION = "4.4"; // 与头部 SOP-CHECK-VERSION 标记一致
 const cwd = process.cwd();
 const args = new Set(process.argv.slice(2));
 const STRICT = args.has("--strict");
@@ -257,15 +257,25 @@ const budgetsCfg = projectCfg && projectCfg.budgets && typeof projectCfg.budgets
 const budgetsOff = !!(projectCfg && projectCfg.budgets === false);
 const budget = (k, d) => (budgetsCfg && Number.isFinite(budgetsCfg[k]) ? budgetsCfg[k] : d);
 const BUDGETS = {
-  agentsMaxChars: budget("agentsMaxChars", 4500),
+  // 软基线：超过只告警。它衡量「本文件是否仍是一份路由表」，不是硬上限——
+  // 真实项目的 AGENTS.md 会因项目特有信息（文件索引、仓库地图、红线、命令）自然增长，
+  // 两个实测项目分别为 5553 / 10814 字符，且与 rules 的段落重复率均为 0%：
+  // 体量增长来自项目自身信息量，不是把 rules 抄了两遍。硬卡这个数只会逼人改配置或关检查。
+  agentsMaxChars: budget("agentsMaxChars", 6000),
+  // 硬红线：超过即 FAIL（除非 budgets:false）。12000 字符 ≈ 8400 token 常驻上下文，
+  // 到这个量级「每次任务先读 AGENTS.md」的纪律事实上已经失效，属于真问题。
+  agentsHardMaxChars: budget("agentsHardMaxChars", 12000),
   ruleMaxChars: budget("ruleMaxChars", 10000),
   rulesTotalMaxChars: budget("rulesTotalMaxChars", 40000),
 };
-const metrics = { agentsChars: agents ? agents.length : 0, rulesChars: 0, maxRuleFile: "", maxRuleChars: 0 };
+const metrics = { agentsChars: agents ? agents.length : 0, rulesChars: 0, maxRuleFile: "", maxRuleChars: 0, agentsDupRate: 0, agentsMaxSectionRatio: 0 };
 
 if (!budgetsOff) {
   if (metrics.agentsChars > BUDGETS.agentsMaxChars) {
-    warn(`AGENTS.md 体量 ${metrics.agentsChars} 字符 > 预算 ${BUDGETS.agentsMaxChars}——它是每次会话的固定成本，建议把细节移入 rules/，本文件只留路由与铁律。`);
+    warn(`AGENTS.md 体量 ${metrics.agentsChars} 字符 > 软基线 ${BUDGETS.agentsMaxChars}——它是每次会话的固定成本。若超出部分确为项目特有信息（文件索引、仓库地图、命令、红线），可在 sop.config.json 的 budgets.agentsMaxChars 覆盖；若是 rules 的复制，应下沉到 ai-context/rules/。`);
+  }
+  if (metrics.agentsChars > BUDGETS.agentsHardMaxChars) {
+    fail(`AGENTS.md 体量 ${metrics.agentsChars} 字符 > 硬红线 ${BUDGETS.agentsHardMaxChars}——常驻上下文已达 ~${Math.round(metrics.agentsChars * 0.7)} token，「每次任务先读它」的纪律事实上失效。必须拆分：把项目特有信息移入 ai-context/ 下的独立文件，AGENTS.md 只留路由与铁律。`);
   }
 }
 for (const p of walk(rulesDir)) {
@@ -288,18 +298,65 @@ if (!budgetsOff && metrics.rulesChars > BUDGETS.rulesTotalMaxChars) {
 }
 
 // ── 6. 熵检测：跨文件重复段落（WARN）──
+// 段落集合的范围含 AGENTS.md 自身——原先只比 rules 内部，而「AGENTS.md 里把 rules
+// 抄了一遍」恰恰是最该被发现的膨胀方式，却完全不在检查范围内。
+const splitParas = (txt) => txt.split(/\n\s*\n/).map((s) => s.trim()).filter((s) => s.split(/\n/).length >= 3 && s.length >= 40);
 const paragraphs = new Map(); // text -> [file, ...]
+const rulesParas = new Set(); // rules 侧全部段落（用于算 AGENTS.md 的重复率）
 for (const p of walk(rulesDir)) {
   const txt = readText(p);
   if (!txt) continue;
-  const paras = txt.split(/\n\s*\n/).map((s) => s.trim()).filter((s) => s.split(/\n/).length >= 3 && s.length >= 40);
-  for (const para of paras) {
+  for (const para of splitParas(txt)) {
+    rulesParas.add(para);
     if (!paragraphs.has(para)) paragraphs.set(para, []);
     paragraphs.get(para).push(rel(p));
   }
 }
+if (agents) {
+  for (const para of splitParas(agents)) {
+    if (!paragraphs.has(para)) paragraphs.set(para, []);
+    paragraphs.get(para).push("AGENTS.md");
+  }
+  // AGENTS.md 中有多少段在 rules 里原样出现——「该下沉却没下沉」的直接证据
+  const agParas = splitParas(agents);
+  const dup = agParas.filter((para) => rulesParas.has(para)).length;
+  metrics.agentsDupRate = agParas.length ? dup / agParas.length : 0;
+  // 判定不能只看比例：段落少的时候比例反而不稳（3 段里抄 2 段是 67%，但因
+  // 「段数不足 4」而漏报——恰恰是重复最严重的情形被放过）。
+  // 故用两条并行判据：抄了 ≥2 段（复制粘贴的直接证据），或段数够多且比例超阈值。
+  if (dup >= 2 || (agParas.length >= 4 && metrics.agentsDupRate > 0.3)) {
+    warn(`AGENTS.md 与 ai-context/rules/ 的段落重复率 ${(metrics.agentsDupRate * 100).toFixed(0)}%（${dup}/${agParas.length} 段原样重复）——这些内容应当只保留在 rules/ 一处，AGENTS.md 改为引用。这比单看总字符数更能定位真正该下沉的部分。`);
+  }
+}
 for (const [para, files] of paragraphs) {
-  if (files.length > 1) warn(`重复段落出现在 ${files.length} 个文件：${files.join(", ")}——建议提取到单一来源。`);
+  if (files.length > 1) warn(`重复段落出现在 ${files.length} 处：${[...new Set(files)].join(", ")}——建议提取到单一来源。`);
+}
+
+// ── 6b. AGENTS.md 单章占比（WARN）──
+// 总长度超标时，最该问的是「是哪一章把文件撑大的」。某一章独占一半以上，
+// 说明内容被塞进了本该留在 rules/ 的位置；各章均匀则说明是项目信息量大（合理）。
+if (agents) {
+  const secs = [];
+  let cur = null;
+  for (const line of agents.split(/\r?\n/)) {
+    if (/^#{2,3}\s/.test(line)) {
+      cur = { title: line.replace(/^#+\s*/, "").trim().slice(0, 30), len: 0 };
+      secs.push(cur);
+      continue;
+    }
+    if (cur) cur.len += line.length + 1;
+  }
+  if (secs.length) {
+    const total = secs.reduce((s, x) => s + x.len, 0);
+    const top = secs.reduce((a, b) => (b.len > a.len ? b : a));
+    metrics.agentsMaxSectionRatio = total ? top.len / total : 0;
+    // 判据：单章既要占多数（>50%）又要有绝对体量（>800 字符）——
+    // 只看占比会让「一个 300 字的小章独占 80%」也告警（那不是问题）；
+    // 只看绝对量又会让「很多小章」永远不告警（那也不对）。
+    if (top.len > 800 && metrics.agentsMaxSectionRatio > 0.5) {
+      warn(`AGENTS.md 中「${top.title}」一章占 ${(metrics.agentsMaxSectionRatio * 100).toFixed(0)}%（${top.len}/${total} 字符）——单章撑起整个文件通常意味着内容该下沉到 ai-context/rules/，AGENTS.md 只留路由与铁律。`);
+    }
+  }
 }
 
 // ── 7. NFR 节存在性（WARN）──
@@ -637,6 +694,9 @@ if (JSON_OUT) {
   console.log(`   kit 版本基准：${KIT_VERSION} ｜ 脚本版本：${SCRIPT_VERSION}${STRICT ? "  (strict)" : ""}`);
   console.log(`   kit 远端：${kitState}`);
   console.log(`   规则体量：AGENTS.md ${fmtK(metrics.agentsChars)} 字符 ｜ rules 合计 ${fmtK(metrics.rulesChars)} 字符${metrics.maxRuleChars ? `（最大 ${metrics.maxRuleFile} ${fmtK(metrics.maxRuleChars)}）` : ""}`);
+  if (metrics.agentsChars) {
+    console.log(`   AGENTS.md 结构：与 rules 重复率 ${(metrics.agentsDupRate * 100).toFixed(0)}%${metrics.agentsMaxSectionRatio ? ` ｜ 最大章占比 ${(metrics.agentsMaxSectionRatio * 100).toFixed(0)}%` : ""}（重复率低 = 体量来自项目自身信息，合理）`);
+  }
   console.log(`   （脚本版本落后于 kit 版本时，用 kit 最新 scripts/sop-check.mjs 整体覆盖本脚本）\n`);
   if (fails.length) { console.log("❌ 失败项："); fails.forEach((m) => console.log("   - " + m)); }
   if (warns.length) { console.log("\n⚠️  警告项："); warns.forEach((m) => console.log("   - " + m)); }

@@ -17,12 +17,13 @@
   "kit": {
     "repo": "https://github.com/caidix/fe-sop-kit",
     "branch": "master",
-    "version": "4.3",
+    "version": "4.4",
     "commit": "",
     "checkRemote": true
   },
   "budgets": {
-    "agentsMaxChars": 4500,
+    "agentsMaxChars": 6000,
+    "agentsHardMaxChars": 12000,
     "ruleMaxChars": 10000,
     "rulesTotalMaxChars": 40000
   }

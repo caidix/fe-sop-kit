@@ -3,7 +3,7 @@ name: sop-init-frontend
 description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意前端项目后调用，自动扫描项目结构并生成 AGENTS.md + ai-context/ + rules/ + specs/ + quality-baseline（demo/ 可选）。适配 React/Vue/Taro/Next.js 等主流前端框架。
 ---
 
-<!-- SOP-VERSION: 4.3 -->
+<!-- SOP-VERSION: 4.4 -->
 
 # sop-init-frontend — 前端项目 AI 协作脚手架初始化（可插拔）
 
@@ -156,7 +156,7 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 > 若本 Skill 目录下找不到该文件，说明安装不完整——应提示用户重跑 `scripts/install.sh`，而不是自己写一个。
 
 ### 生成要求
-- **AGENTS.md**：**保持精简**——生成后目标 < 4,500 字符（`sop-check` 按此预算告警）。只放分级加载矩阵、读取纪律、文件索引、铁律与裁剪声明，细节一律放 rules。**§一 的「三步判级法」（数改动面 → 查高风险面 → 兜底）必须完整保留**——阈值可按项目调（如把 5 文件改成 3 文件），但不能删步骤或退回「只看信号描述」，否则 agent 无法稳定判级。填充「本项目对 SOP 的裁剪」→ `{{SOP_CUSTOMIZATIONS}}`（默认「暂无」；用户在阶段 1 第 13 问选择不生成 demo/ 时，写明「不生成 demo/（实践沉淀走 rules 已知陷阱）」；有其他裁剪逐条列出）。**文件索引表只保留本项目实际生成的框架文件**（React 项目删掉 vue/generic 行，反之同理）。**必须填入 kit 溯源信息**：`{{KIT_REPO}}` = kit 仓库地址（默认 `https://github.com/caidix/fe-sop-kit`）；`{{KIT_COMMIT}}` = 本次使用的 kit commit（读**本 Skill 目录下的 `kit-source.json`** 的 `commit` 字段，由 `install.sh` 安装时写入；读不到就填 `unknown`，**绝不编造 sha**）。这两个值落在 AGENTS.md 顶部第 2、3 行，是 `sop-check` 判断「远端是否已有新版本」的唯一依据。
+- **AGENTS.md**：**保持精简**——生成后目标 < 6,000 字符（软基线，`sop-check` 按此告警；> 12,000 触发硬红线 FAIL）。只放分级加载矩阵、读取纪律、文件索引、铁律与裁剪声明，细节一律放 rules。**注意**：`sop-check` 会额外检查「与 `rules/` 的段落重复率」和「单章占比」——若告警，说明内容该下沉到 rules/，而不是简单压缩字数（真实项目的 AGENTS.md 因文件索引、仓库地图等**项目特有信息**而超出软基线是正常的，此时应引导用户调 `budgets.agentsMaxChars` 而非删内容）。**§一 的「三步判级法」（数改动面 → 查高风险面 → 兜底）必须完整保留**——阈值可按项目调（如把 5 文件改成 3 文件），但不能删步骤或退回「只看信号描述」，否则 agent 无法稳定判级。填充「本项目对 SOP 的裁剪」→ `{{SOP_CUSTOMIZATIONS}}`（默认「暂无」；用户在阶段 1 第 13 问选择不生成 demo/ 时，写明「不生成 demo/（实践沉淀走 rules 已知陷阱）」；有其他裁剪逐条列出）。**文件索引表只保留本项目实际生成的框架文件**（React 项目删掉 vue/generic 行，反之同理）。**必须填入 kit 溯源信息**：`{{KIT_REPO}}` = kit 仓库地址（默认 `https://github.com/caidix/fe-sop-kit`）；`{{KIT_COMMIT}}` = 本次使用的 kit commit（读**本 Skill 目录下的 `kit-source.json`** 的 `commit` 字段，由 `install.sh` 安装时写入；读不到就填 `unknown`，**绝不编造 sha**）。这两个值落在 AGENTS.md 顶部第 2、3 行，是 `sop-check` 判断「远端是否已有新版本」的唯一依据。
 - **project-map.md**：精确标注路由注册点（手写 / file-based / 插件注入），附构建命令速查。**填充「归属决策表」**（`{{PAGE_DIR}}` / `{{SHARED_COMPONENT_DIR}}` / `{{UI_PRIMITIVE_DIR}}` / `{{FEATURE_DIR}}` / `{{SERVICE_DIR}}` / `{{STATE_DIR}}` / `{{TYPE_DIR}}` / `{{UTILS_DIR}}` / `{{CONST_DIR}}` / `{{STYLE_DIR}}`）——每行填**项目真实目录名**，「不要放哪」列写具体错误位置；**填充「允许导入关系」** `{{LAYER_ROWS}}`（将被翻译成 ESLint / dependency-cruiser 规则）；**填充「项目地雷」** `{{PROJECT_LANDMINES}}`（现象 | 根因 | 正确做法）。**收录标准：只写 agent 无法从代码直接读出的信息**——目录清单、技术栈、模块名不要写，读一遍代码就知道的东西每次会话都要付费且会稀释真正的约定。
 - **design-tokens.md**（前端项目，阶段 1 第 15 问）：**填充「Token 真源位置」** `{{TOKEN_SOURCE}}`（文件路径 + 深色模式切换方式）；**填充「当前 Token 清单」** `{{TOKEN_ROWS}}`（**只列真实存在的 token，不编造**；无 token 层则填「待建立」并提示用户）；**填充「工具类映射覆盖度」** `{{MAPPING_ROWS}}`；**填充「硬编码值三分类」**的 A 类形态清单与 `{{LITERAL_ROWS}}` 提升信号表；**填充「已知例外」** `{{TOKEN_EXCEPTIONS}}`（每条写明「为什么必须例外」——没有原因的例外会被后续当漏洞删掉）。命名体系一节按项目实际 token 族填写，**优先语义命名**（`action-primary` 用途 > `blue-500` 外观）。
 - **sop-upgrade.md**（**必须生成，不可选**）：从模板生成，填入 `{{KIT_REPO}}` / `{{KIT_BRANCH}}` / `{{KIT_VERSION}}` / `{{KIT_COMMIT}}`（取值来源同 AGENTS.md 的 kit 溯源信息）。**这是「未在本机安装 Skill 也能升级 SOP」的唯一流程依据**——缺了它，该项目的升级行为完全失控：AI 既不知道去哪里取官方模板与脚本，也就没有任何东西约束它，转头就会自行手写一份替代实现（真实事故：手写版检查脚本的 ignore 规则与扩展名表全坏，却看起来「有门禁」）。
