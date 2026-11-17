@@ -1,8 +1,8 @@
-<!-- SOP-VERSION: 3.9 -->
+<!-- SOP-VERSION: 4.0 -->
 
 # sop-frontend-kit — 前端项目 AI 协作脚手架（可插拔）
 
-> **SOP 版本：v3.9**
+> **SOP 版本：v4.0**
 
 一套**可复用的前端 AI 协作规范模板包**。放到任意前端项目中调用一次，AI 自动扫描项目结构并生成 `AGENTS.md` + `ai-context/` + `rules/` + `specs/`（+ 可选的 `demo/`）。支持 CodeBuddy / WorkBuddy 双工具。
 
@@ -162,19 +162,25 @@ node scripts/sop-check.mjs --json     # 机器可读输出
 ├── AGENTS.md                          # 统一入口（CodeBuddy + WorkBuddy）+ SOP 版本标记
 ├── sop.config.json                    # 【可选，默认生成】代码熵硬门禁配置（sop-check 据此扫描源码）
 ├── ai-context/
-│   ├── project-map.md                 # 目录地图 + 项目特有机制
+│   ├── project-map.md                 # 目录地图 + **归属决策表** + 允许导入关系 + 项目地雷 ★
 │   ├── prd.md                         # 产品定位 + 模块清单
 │   ├── design.md                      # 架构设计 + 特有机制详解
+│   ├── design-tokens.md               # 设计 token 清单 + **硬编码值三分类判定** ★（前端项目）
 │   ├── quality-baseline.md            # 质量基线快照（体积/覆盖率/tsc/lint + 回归红线）★
+│   ├── configs/                       # 【可选】机器强制层配置模板 ★
+│   │   ├── README.md                  # 三件套分工 + 接入顺序（先定表 → 再翻译 → 先 warn → 转 error）
+│   │   ├── eslint-boundaries.json     # 分层 import 边界（编辑器当场标红）
+│   │   ├── dependency-cruiser.json    # 依赖图健康度（循环依赖 / 孤儿文件 / 跨 feature 引用）
+│   │   └── stylelint.json             # CSS 侧硬编码色值
 │   └── rules/
-│       ├── frontend.md                # 代码风格（必读）+ 非功能需求(NFR)节 ★
+│       ├── frontend.md                # 代码风格（必读）+ **硬编码值三分类** + 非功能需求(NFR)节 ★
 │       ├── react.md                   # React 项目宪法 ★（第 0 节：代码风格；后续：Hooks/ErrorBoundary/Suspense 等）
 │       ├── vue.md                     # Vue 专属约束 ★（仅 Vue 项目）
 │       ├── platform.md                # 多端/多环境矩阵
 │       ├── workflow.md                # 开发流程纪律 + 任务分类 + 任务闭环
 │       ├── planning.md                # 复杂任务规划模式 ★（L3 四阶段：理解→设计→拆解→自审）
 │       ├── testing.md                 # 验证基线 + TDD 工作流
-│       ├── review.md                  # 五轴 Review 清单 + 可执行检查 ★
+│       ├── review.md                  # 五轴 Review 清单 + 可执行检查 + **设计一致性/落位正确性** ★
 │       └── skill-routing.md           # Skill 调度规则（AI PM）★
 ├── specs/
 │   ├── README.md                      # spec 说明 + 生命周期（活跃 / 归档 / 废弃）+ 触发判据
@@ -261,6 +267,10 @@ flowchart TB
 
 ## 特色机制
 
+- **设计 token 层 + 硬编码值三分类判定** ★（v4.0）：新增 `ai-context/design-tokens.md`——记录 token 真源、**语义命名体系**（`action-primary` 用途优先于 `blue-500` 外观）、**当前 token 清单**、**工具类映射覆盖度**，以及「硬编码值三分类」：**颜色字面量该禁 / token 引用合规 / 几何与变体合法**。判定依据是「这个值表达什么」，不是「它出现在哪种语法里」——Tailwind 把任意值定位为逃生舱，逃生舱本身合法，要约束的是「重复出现」而非「用了方括号」。同一色值出现 ≥2 次即为「该建 token」的信号。
+- **机器强制层（configs/）** ★（v4.0）：把「什么放什么位置」「不许硬编码色值」从文档建议变成机器门禁——`eslint-boundaries.json`（分层 import 边界，编辑器当场标红）、`dependency-cruiser.json`（循环依赖 / 孤儿文件 / 跨 feature 引用）、`stylelint.json`（CSS 侧裸 hex）。**接入顺序有讲究**：先定归属决策表 → 再翻译成规则 → 先 warn 跑存量基线 → 最后转 error（直接开 error 会让项目立刻红掉，团队的反应通常是把规则关掉）。
+- **归属决策表** ★（v4.0）：`project-map.md` 新增「什么东西放什么位置」对照表 + 「允许导入关系」越界表 + 「项目地雷」。针对 AI 生成代码最常见的错误——不是写错而是**放错**（工具函数塞进组件、请求逻辑写进 UI 层、类型定义各处重复）。
+- **硬编码颜色扫描** ★（v4.0）：`sop-check` 新增代码熵检查项，识别 `-[#hex]` / `-[rgb()]` 形态并按色值聚合（`×4` 直接提示"该建 token"）。**刻意不用** `eslint-plugin-tailwindcss` 的 `no-arbitrary-value`——那条规则一刀切所有任意值，会误杀 token 引用与几何变体；误报率高的规则最终会被关掉，等于没有门禁。
 - **硬门禁脚本（验证优于说教）** ★：`scripts/sop-check.mjs` 把"AGENTS.md 存在 / 占位符已填 / 版本一致"等软纪律变成 CI 可阻断的硬约束；`--strict` 模式警告也计失败。移植自 harness-engineering。
 - **熵检测（entropy GC 窄版本）** ★：sop-check 自动检测 rules 超长（>400 行）、跨文件重复段落、TODO/TBD 残留、**规则体量预算**（AGENTS.md > 4,500 字符 / 单文件 > 10,000 / `rules/` 合计 > 40,000），每次运行都打印实际体量，防止 AI 生成的规则随时间臃肿。移植自 harness-engineering 的 entropy garbage collection。
 - **非功能需求（NFR）承载** ★：`frontend.md` 新增「非功能需求」节——性能预算 / 安全基线 / 可访问性 / 浏览器兼容 / 国际化，作为可恢复、可校验的项目级约束。移植自 harness-engineering。
@@ -316,7 +326,8 @@ flowchart TB
 <details>
 <summary>版本历史（CHANGELOG）</summary>
 
-- **v3.9（当前）**：**specs 生命周期（防止「永不清理」退化成垃圾场）**——① `specs/README` 模板确立三态（活跃 / 归档 / 废弃）与阈值：已交付满 90 天、草稿停滞 30 天、活跃目录 > 8 个即触发归档；② 归档落到 `specs/archive/`，检查器跳过该目录的四件套与占位符检查（冻结区不再当活跃 spec 管）；③ 新增 `specs/INDEX.md` 模板 + `proposal.md` 增加「交付结论」字段，归档时一句话登记，解决「查当初为什么这么做」；④ `sop-check` 新增五类 WARN：状态行缺失、状态值不在枚举、已交付超期未归档、草稿停滞、活跃超编（时间用文件 mtime 近似，新克隆不误报）；⑤ 归档前若代码注释引用了 spec 路径，README 约定先改为 `specs/archive/...` 或提交号。
+- **v4.0（当前）**：**从「写更多文档」转向「补机器强制层」**（源自 air-chat 深度使用暴露的通用缺口）——① **新增 `ai-context/design-tokens.md` 模板**：记录 token 真源、**语义命名体系**（用途优先于外观）、**当前 token 清单**、**工具类映射覆盖度**，以及**硬编码值三分类判定**——颜色字面量该禁 / token 引用合规 / 几何与变体合法。判定依据是「这个值表达什么」而非「它出现在哪种语法里」：Tailwind 官方把任意值定位为 escape hatch，逃生舱本身合法，要约束的是「重复出现」而非「用了方括号」；一刀切禁任意值会把代码逼向 inline style，UI 一致性反而更差。同一色值出现 ≥2 次即「该建 token」信号；② **新增 `ai-context/configs/` 机器强制层模板**（eslint 边界 / dependency-cruiser / stylelint），附接入顺序：先定归属表 → 再翻译成规则 → **先 warn 跑存量基线** → 最后转 error（直接开 error 会让项目立刻红掉，团队通常直接把规则关掉）；③ **`sop-check` 新增三项**：硬编码颜色字面量扫描（只命中 `-[#hex]` / `-[rgb()]` 形态，按色值聚合；**刻意不用** `eslint-plugin-tailwindcss` 的 `no-arbitrary-value`——它会误杀 token 引用与几何变体）、缺 `design-tokens.md` 告警、未接入任何强制层告警；④ **`project-map.md` 新增归属决策表 + 允许导入关系（越界表）+ 项目地雷**，并确立收录标准：**只写 agent 无法从代码直接读出的信息**（读一遍代码就知道的东西每次会话都要付费且稀释真正重要的约定）；⑤ **`frontend.md` 新增硬编码值判定 + 工具类映射要求**，`review.md` 新增「设计一致性」「落位正确性」两组检查项；⑥ `SKILL.md` 阶段 0 新增 token 层/硬编码现状/层级结构/现有强制层四项探测，阶段 1 新增两问（设计 token 体系、机器强制层），阶段 2 新增生成要求，升级流程明确 v4.0 新文件处理；⑦ `kit-self-check` 新增 v4.0 关键模板防误删校验。
+- **v3.9**：**specs 生命周期（防止「永不清理」退化成垃圾场）**——① `specs/README` 模板确立三态（活跃 / 归档 / 废弃）与阈值：已交付满 90 天、草稿停滞 30 天、活跃目录 > 8 个即触发归档；② 归档落到 `specs/archive/`，检查器跳过该目录的四件套与占位符检查（冻结区不再当活跃 spec 管）；③ 新增 `specs/INDEX.md` 模板 + `proposal.md` 增加「交付结论」字段，归档时一句话登记，解决「查当初为什么这么做」；④ `sop-check` 新增五类 WARN：状态行缺失、状态值不在枚举、已交付超期未归档、草稿停滞、活跃超编（时间用文件 mtime 近似，新克隆不误报）；⑤ 归档前若代码注释引用了 spec 路径，README 约定先改为 `specs/archive/...` 或提交号。
 - **v3.8**：**上下文成本控制（token 预算）**——① `AGENTS.md` 模板重构：把「进入项目后依次读取 11 个文件」改为「**三步判级法**（数改动面 → 查高风险面 → 兜底默认 L2）+ 加载表（必读 / 按需 / 跳过）+ 读取纪律（先 grep 章节再按片段读、不重读、项目文档默认不读）+ 文件索引表」，并在首条回复自报「判级 + 已读文件」，一次样式改动从「全量 rules（约 2.3 万字符）」降到「样式规范 + review 五轴 + 必过关卡 + 铁律 4（约 3.4K 字符）」；② AGENTS.md 瘦身（模板 3,774 字符，含三步判级法，外部 Skill 安装建议归并到 `skill-routing.md`，分级细则归位 `workflow.md`，删除与 rules 重复的说明）；③ 各 rules 模板加一行「职责 + 按节读」提示（不展开静态目录——目录用 `grep "^## "` 动态获取，避免漂移）；④ `sop-check` 新增**规则体量预算**（AGENTS.md 4,500 / 单文件 10,000 / 合计 40,000 字符，可由 `sop.config.json` 的 `budgets` 覆盖；`false` 只关体量预算，>400 行检查仍执行），每次运行打印实际体量，`--json` 输出 `metrics` 便于 CI 追踪；⑤ 修复 `workflow.md` 中 `demo/` 硬编码残留（改为条件化表述）；⑥ 判级可执行化（二次评审）：**L0-L3 是自定标签、工具不认识**，原「信号」列是模糊描述（多文件/正常功能），改为**三步判级法**——数改动面（≤1/1-2/3-5/>5 文件）→ 查高风险面（鉴权/支付/请求拦截器/构建配置/接口协议等命中即 L3，新增一条路由不算）→ 兜底默认 L2，并要求首条回复自报「判级 + 已读文件」以便核查；⑦ 二次评审修复：**质量基线豁免被文件索引行误触发**（改为只认「裁剪」区块的显式声明）、**代码熵启用但零匹配源文件时静默全绿**（现改为告警）、分级矩阵把 `review.md` / `testing.md` / `skill-routing.md` 降级为「按需」与各自的强制条款冲突（改为**必读、只读命中节**，不动质量红线），并把 `workflow.md` 铁律 4 的任务分类限定到 L2/L3；`kit-self-check` 的 install.sh 版本校验覆盖安装横幅、新增「生成集合计不得超预算」校验；代码熵改为「配置含代码扫描字段（或 `codeEntropy:true`）才启用」，避免只为调 `budgets` 的项目被意外开启扫描。
 - **v3.7**：**把「验证优于说教」落到代码层 + 质量可度量**——① 新增可选 `sop.config.json`：项目放置后 `sop-check` 会扫描源码（超长文件 / console 残留 / any 类型 / 危险 API / 代码 TODO），按配置开关与阈值执行、每类输出限流；**不生成则代码熵检查完全静默**（老项目升级不会被刷屏）；② 新增 `ai-context/quality-baseline.md`：初始化时实跑命令采一次质量水位（bundle 体积/覆盖率/tsc/lint）+ 回归红线，作为改动前后对照基准；③ `frontend.md` 新增「设计决策卡」四问（状态放哪儿/组件怎么拆/副作用边界/请求竞态），把资深前端的取舍显式化，避免 AI 过度设计或漏掉竞态；④ 修 v3.6 Review 遗漏：install.sh 版本号、README/SKILL 中 demo/ 描述、spec 目录白名单过滤、TODO 否定语境改就近判定、spec 状态行必填强调。
 - **v3.6**：**检查器自检与升级闭环修复**（源自 air-chat 实战评审）——① 修复 sop-check.mjs 全局正则 `lastIndex` 跨文件串扰（`todoRe` / `placeholderRe` 带 `/g` 在循环里 `.test()` 导致漏报/误报）；② TODO 检测排除否定语境与代码块（规则里「禁止：TBD」不再被误报为待办残留）；③ 新增 specs 四件套完整性检查（`状态：草稿` 豁免，残缺目录 WARN）；④ 脚本内嵌 `SOP-CHECK-VERSION` 标记并在输出打印，kit-self-check 校验其与 kit 版本一致，SKILL.md 增量更新流程明确「脚本类文件一律以 kit 最新版整体覆盖」（修复项目脚本停留在旧版、文档宣称能力与实际脱节的问题）；⑤ spec 状态机补「待验证」中间态 + 状态流转约定 + 「验证边界声明」节（部分完成的正式出口，防止状态与验证记录自相矛盾）；⑥ demo/ 改为可选（默认不生成），AGENTS.md 模板新增「本项目对 SOP 的裁剪」区块统一声明删减、升级时保留。

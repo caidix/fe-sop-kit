@@ -1,0 +1,23 @@
+{
+  "_说明": "stylelint 配置——管 CSS 侧的硬编码色值。放在项目根 .stylelintrc.json。这是【片段】，按项目实际的 CSS 方案（CSS Modules / Less / Sass / PostCSS）调整后合并进项目配置。",
+  "_为什么需要": "AI 生成 CSS 时倾向直接写 hex，因为它「看起来更确定」。但硬编码色值让深色模式无法单点覆盖，也让设计改版需要逐处改。stylelint 是机器门禁，比 markdown 里的禁令可靠得多。",
+
+  "rules": {
+    "color-no-hex": true,
+    "declaration-strict-value": [
+      true,
+      {
+        "ignoreVariables": false,
+        "ignoreProperties": [],
+        "ignoreTypes": ["/^\\$/", "/^--/"],
+        "ignoreFunctions": ["var", "calc", "clamp", "min", "max"]
+      }
+    ]
+  },
+
+  "_ignoreTypes 解释": "正则匹配「值看起来像变量」的形态：SCSS 的 $var 与 CSS 自定义属性 --var 允许直接赋值，因为它们就是 token 引用，不算硬编码。ignoreFunctions 里列出的是函数型值，同样不是字面量。",
+
+  "_与 Tailwind 任意值的关系": "stylelint 只管 CSS 文件，管不到 JSX 里的 className。JSX 侧的颜色字面量由 sop-check.mjs 的「硬编码颜色」检查项负责（识别 -[#hex] / -[rgb()] 形态）。两侧配合才完整。",
+
+  "_例外处理": "确需字面量时用 stylelint-disable-next-line 并注明原因。不要为了消警告而全局关规则——关掉就等于没有这条门禁。"
+}

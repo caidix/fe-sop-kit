@@ -1,0 +1,52 @@
+{
+  "_说明": "dependency-cruiser 配置——检查层间依赖方向、循环依赖、孤儿文件。放在项目根，与 package.json 同级。AI 生成代码最常犯的错就是「挑最近的 import 路径写」，这类错误靠 review 抓不干净，需要机器守门。",
+  "_何时需要": "项目分层清晰（≥3 层，如 components / features / data / shared）时启用。单文件或两层项目可跳过——过度约束反而拖慢开发。",
+
+  "forbidden": [
+    {
+      "name": "no-orphans",
+      "comment": "没有任何模块引用它——通常是 AI 生成后忘了接线，或重构后遗留的死文件",
+      "severity": "warn",
+      "from": { "pathNot": ["(^|/)node_modules/", "\\.d\\.ts$", "(^|/)scripts/"] },
+      "to": { "path": "^(src|app|packages)/" }
+    },
+    {
+      "name": "no-circular",
+      "comment": "循环依赖——两个模块互相依赖，改一个必崩另一个，且让后续拆分无法进行",
+      "severity": "error",
+      "from": {},
+      "to": { "circular": true }
+    },
+    {
+      "name": "no-cross-feature-internals",
+      "comment": "禁止 feature 之间互相 import 内部实现——会让其中一个成为另一个的 hostage，重构时必须同时改两处",
+      "severity": "error",
+      "from": { "path": "^src/features/([^/]+)/" },
+      "to": { "path": "^src/features/[^/]+/[^/]+" }
+    },
+    {
+      "name": "not-to-deprecated",
+      "comment": "不得依赖标记为 deprecated 的模块",
+      "severity": "warn",
+      "from": {},
+      "to": { "path": "deprecated" }
+    }
+  ],
+
+  "options": {
+    "doNotFollow": { "path": "node_modules" },
+    "exclude": { "path": "(^|/)node_modules/|(^|/)dist/|(^|/)build/|(^|/)coverage/" },
+    "tsConfig": { "fileName": "tsconfig.json" },
+    "enhancedResolveOptions": {
+      "extensions": [".ts", ".tsx", ".js", ".jsx", ".vue", ".mjs", ".json"],
+      "caseSensitive": true
+    },
+    "tsPreCompilationDeps": true,
+    "combinedDependencies": false,
+    "ignoreModuleDependencies": false
+  },
+
+  "_执行": "npx depcruise --config .dependency-cruiser.json src",
+  "_接入建议": "放进 package.json 的 scripts：\"check:deps\": \"depcruise --config .dependency-cruiser.json src\"，并在 CI 与 pre-commit 跑。与 ESLint 边界规则互补：ESLint 管单行 import 是否越界，depcruise 管整体依赖图是否健康。",
+  "_注意": "首次接入时先跑一次 --output-type err-long 看看现有违规量。存量违规不要一次性全禁——先记录基线、设为 warn，再逐步收紧，最后转 error。直接开 error 会让项目立刻红掉，团队会直接把规则关掉。"
+}

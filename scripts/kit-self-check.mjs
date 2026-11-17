@@ -13,7 +13,7 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const KIT_VERSION = "3.9";
+const KIT_VERSION = "4.0";
 const kitDir = process.cwd();
 const fails = [];
 const warns = [];
@@ -71,6 +71,27 @@ const selfSkills = [...installSh.matchAll(/"([a-z-]+)"/g)].map((m) => m[1])
 for (const s of selfSkills) {
   if (!existsSync(join(kitDir, "skills", s))) fail(`install.sh 声明的自有 Skill 目录不存在：skills/${s}`);
 }
+
+// ── 3b. v4.0 关键模板必须存在（防误删）──
+// 这批文件是 v4.0 的核心增量：token 层模板缺失会让「必须用设计 Token」失去可执行性；
+// 强制层配置缺失会让机器门禁无从接入。删掉任何一个都会让 kit 静默降级回 v3.9 行为。
+const REQUIRED_V4_TEMPLATES = [
+  "ai-context/design-tokens.md",
+  "configs/eslint-boundaries.json",
+  "configs/dependency-cruiser.json",
+  "configs/stylelint.json",
+];
+for (const t of REQUIRED_V4_TEMPLATES) {
+  const p = join(tplRoot, t + ".template");
+  if (!existsSync(p)) fail(`v4.0 关键模板缺失：templates/${t}.template（删除会使 kit 静默降级为 v3.9 行为）`);
+}
+// configs/README.md 是说明文档（不含占位符），不需要 .template 后缀
+if (!existsSync(join(tplRoot, "configs/README.md"))) {
+  fail("v4.0 关键文件缺失：templates/configs/README.md（强制层接入说明，缺了接入顺序会被跳过）");
+}
+// v4.0 的两个新能力必须同时出现在 SKILL.md 主流程里，否则新模板永远不会被生成
+if (!/design-tokens/.test(skill)) fail("SKILL.md 未提及 design-tokens——v4.0 的 token 层模板不会被生成");
+if (!/configs\//.test(skill) && !/强制层/.test(skill)) fail("SKILL.md 未提及强制层配置（configs/）——机器门禁不会被接入");
 
 // ── 4. 占位符命名规范（全大写下划线）──
 const placeholderRe = /\{\{([^}]+)\}\}/g;

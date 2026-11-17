@@ -17,8 +17,29 @@
 {{TS_CONVENTIONS}}
 
 ## 样式规范
-<!-- AI-INSERT: 方案（CSS Modules / Tailwind / styled-components 等）、类名规范（camelCase / kebab-case）、CSS 预处理器 -->
+<!-- AI-INSERT: 方案（CSS Modules / Tailwind / styled-components 等）、类名规范（camelCase / kebab-case）、CSS 预处理器
+     ★ 涉及颜色/间距/字号/圆角/阴影的硬约束，一律指向 ai-context/design-tokens.md，不要在本节重复 token 清单。
+     本节只写「取值规则的判据」，token 清单在 design-tokens.md 维护（避免两处漂移）。 -->
 {{STYLE_CONVENTIONS}}
+
+### 硬编码值判定 ★
+
+> **「禁止硬编码」是一句无法执行的口号**——不同性质的硬编码，正确处理方式完全相反。
+> 判定依据是**这个值表达的是什么**，不是**它出现在哪种语法里**。三分类明细见 `ai-context/design-tokens.md`。
+
+- **颜色字面量**（`-[#hex]` / `-[rgb()]` / `-[hsl()]` / CSS 裸 hex）→ **禁止**，改用设计 token。同值出现 ≥2 次必须提升为 token。
+- **Token 引用**（`var(--token)` / 已映射工具类）→ **允许**。若写成方括号形式（`text-[var(--x)]`），说明该 token 未映射——应补映射，而非禁止这种写法。
+- **几何 / 变体任意值**（响应式计算、`env()` 安全区、`data-[state=*]`、自定义过渡属性）→ **允许**。这些是框架没有对应工具类的场景，禁掉只会把代码逼向 inline style，UI 一致性反而更差。
+
+> 若本项目无 `design-tokens.md`（后端 / 无 UI 项目），本节整体删除。
+
+### 工具类映射要求
+
+<!-- AI-INSERT: 若用 Tailwind，记录 token 如何映射为工具类（theme.extend / theme / @theme），
+     以及「新增 token 必须同步补映射」这条规则。
+     理由：token 只存在于 CSS 变量里而工具类没映射时，合规写法（text-[var(--x)]）比违规写法（text-[#111827]）更长更笨，
+     模型必然选短的——此时禁违规写法等于逼它违规，正确解法是补映射。 -->
+{{TOOL_CLASS_MAPPING}}
 
 ## 状态管理规范
 <!-- AI-INSERT: useSelector 类型化写法、dispatch 方式、slice 组织 -->

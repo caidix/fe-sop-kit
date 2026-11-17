@@ -8,9 +8,11 @@
     "consoleLog": true,
     "anyType": true,
     "dangerousApi": true,
-    "todoComment": false
+    "todoComment": false,
+    "hardcodedColor": true
   },
   "ignore": ["**/*.test.*", "**/*.spec.*", "**/node_modules/**", "**/dist/**", "**/build/**"],
+  "colorAllowPatterns": [],
   "budgets": {
     "agentsMaxChars": 4500,
     "ruleMaxChars": 10000,

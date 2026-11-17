@@ -1,0 +1,38 @@
+{
+  "_说明": "eslint 依赖边界规则——把「什么东西放什么位置」从文档约束变成机器门禁。用法见同级 README.md。此文件是【片段】，需合并进项目已有的 eslint.config.js（flat config），不要直接覆盖。",
+  "_为什么要机器边界": "「组件不能直接 import 服务层」写在 markdown 里，agent 会看到但不一定遵守；写在 ESLint 规则里，编辑器当场标红，AI 自己也跑不掉。边界一旦机器可执行，代码审查就不再需要靠人记忆判断分层对错。",
+  "_前置": "先在 ai-context/project-map.md 的「归属决策表」里定好层与层的允许关系，本配置只是把那张表翻译成规则。两处必须一致。",
+
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["**/services/**", "**/api/**", "**/services/*"],
+            "message": "展示层不得直接依赖数据层。数据获取走 data-hooks / 容器组件，props 向下传。若确需共享类型，把类型提到 shared 层。"
+          },
+          {
+            "group": ["**/store/**", "**/stores/**"],
+            "message": "展示层不得直接读全局 store。状态订阅收敛到容器组件或自定义 hook。"
+          },
+          {
+            "group": ["**/pages/**"],
+            "message": "页面目录不得被其它层 import（页面是路由入口，只允许被路由注册点引用）。"
+          }
+        ]
+      }
+    ]
+  },
+
+  "_分层规则示例（按项目实际目录改名）": {
+    "src/components/**": "展示层：不得 import 数据层与全局 store",
+    "src/features/**": "业务层：可 import 数据层与共享层；不得 import 其它 feature 的内部实现",
+    "src/data/**": "数据层：只可 import 共享层",
+    "src/shared/**": "共享层（叶子）：不得 import 任何业务层"
+  },
+
+  "_为什么用 no-restricted-imports 而不是 dependency-cruiser": "ESLint 规则在编辑器里就报错，作者在写代码的当下就能看到，成本最低。dependency-cruiser 适合做更复杂的图分析（循环依赖、孤儿文件），放到 CI 跑。两者互补，不冲突。",
+
+  "_重要实践": "错误信息要写清「为什么」。半年后没人记得这条规则为什么存在，错误信息就成了唯一活下来的设计文档——写清楚了开发者才会去改对的地方，而不是加一行 eslint-disable。"
+}

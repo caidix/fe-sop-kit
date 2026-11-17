@@ -3,7 +3,7 @@ name: sop-init-frontend
 description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意前端项目后调用，自动扫描项目结构并生成 AGENTS.md + ai-context/ + rules/ + specs/ + quality-baseline（demo/ 可选）。适配 React/Vue/Taro/Next.js 等主流前端框架。
 ---
 
-<!-- SOP-VERSION: 3.9 -->
+<!-- SOP-VERSION: 4.0 -->
 
 # sop-init-frontend — 前端项目 AI 协作脚手架初始化（可插拔）
 
@@ -28,6 +28,10 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 | 路由系统 | 搜索 `router`/`routes`/`pages` 目录；是否为框架内建（Next.js App Router）或第三方注入（Taro 插件） |
 | 状态管理 | `package.json` 搜索 redux/pinia/zustand/mobx/recoil/jotai；记录库名 + 版本 |
 | 样式方案 | 搜索 scss/less/tailwind/styled-components/css-modules |
+| **设计 Token 层** ★ | 搜索 CSS 变量（`--color-` / `--spacing-` / `--text-`）、`tailwind.config.*` 的 `theme.extend`、`@theme`（v4）、`theme.ts`/`tokens.ts`；记录：token 定义在哪个文件、是否已映射为工具类（Tailwind theme / CSS 变量）、深色模式如何切换。**无 token 层也要记录**（后续要建） |
+| **硬编码色值现状** ★ | 在源码中统计 `-[#hex]` / `-[rgb()]` 形态的出现与重复情况（同一色值 ≥2 次 = 该建 token 的信号）。有 CSS 时另查裸 hex |
+| **层级结构** ★ | 扫描顶层目录（pages/components/hooks/services/utils/types/store 等），推断出「展示层 / 业务层 / 数据层 / 共享层」，据此填 project-map 的归属决策表与允许导入关系 |
+| **现有强制层** ★ | 检查是否已有 ESLint 边界规则（`no-restricted-imports`）、dependency-cruiser 配置、stylelint 硬色值规则；记录存在性（决定新配置是「补充」还是「新建」） |
 | UI 组件库 | 搜索 antd/element-plus/naive-ui/taro-ui/radix-ui/shadcn；记录库名 + 版本 |
 | API 层 | 搜索 axios/fetch/umi-request、`api/`、`request` 封装文件 |
 | 认证鉴权 | 搜索 login/auth/token/JWT/OAuth/路由守卫 |
@@ -89,7 +93,16 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 11. **Vue 官方 Skill**：若扫描到已安装 Vue 官方的 vue-best-practices / vue-router-best-practices 等，告知用户"检测到已安装，SOP 将自动激活"。若未安装，建议用户执行 `npx skills add vuejs-ai/skills`（Vue 项目）。本 SOP 的 `ui-skill-router` 调度器可在未安装时自动降级。
 12. **UI Skill 环境**：若扫描到用户已安装 UI Skill（interface-design / ui-ux-pro-max / impeccable / taste-skill），向用户确认：是否在 UI 密集任务中启用它们？若未安装，提示可安装以获得更好的 UI 开发体验。
 13. **demo/ 示例库（可选，默认不生成）**：询问用户是否需要 `demo/` 目录沉淀可复用的好实践示例。默认**不生成**——实践沉淀默认走各 rules 的「已知陷阱」节（多数稳定项目最终会删除 demo/，改为纯 rules 承载）；用户明确确认需要示例库才生成 `demo/README.md`，并在 AGENTS.md 保留对应引用。
-14. **代码熵硬门禁（可选，默认开启）**：向用户说明——可生成 `sop.config.json` 让 `sop-check` 额外扫描源码（超长文件 / console 残留 / any 类型 / 危险 API / 代码 TODO），把「验证优于说教」落到代码层。默认生成并启用（阈值取模板默认：`maxFileLines: 300`、`console`/`any`/`dangerousApi` 开、`todoComment` 关）；用户若担心误报可选择不生成——不生成则代码熵检查完全静默，不影响其余检查。生成时按项目实情调整 `srcDirs` / `codeExtensions`。
+14. **代码熵硬门禁（可选，默认开启）**：向用户说明——可生成 `sop.config.json` 让 `sop-check` 额外扫描源码（超长文件 / console 残留 / any 类型 / 危险 API / 代码 TODO / 硬编码颜色字面量），把「验证优于说教」落到代码层。默认生成并启用（阈值取模板默认：`maxFileLines: 300`、`console`/`any`/`dangerousApi`/`hardcodedColor` 开、`todoComment` 关）；用户若担心误报可选择不生成——不生成则代码熵检查完全静默，不影响其余检查。生成时按项目实情调整 `srcDirs` / `codeExtensions`。**若项目已有 `sop.config.json`，只做增量合并，不覆盖。**
+15. **设计 Token 体系（前端项目必问）**：向用户说明——会生成 `ai-context/design-tokens.md`，记录 token 真源、命名体系、**当前 token 清单**、工具类映射覆盖度，以及「硬编码值三分类判定」（颜色字面量该禁 / token 引用合规 / 几何与变体合法）。
+    - 关键提问：**「项目现在有设计 token 吗？定义在哪？深色模式怎么切？」**
+    - 若项目**没有** token 层 → 明确告知用户：「『必须用设计 Token』在没有清单时无法执行，AI 只能猜或硬编码。建议先建最小 token 层（颜色 + 字号 + 间距），我可以在初始化时一并生成初版清单。」征得同意后按扫描到的实际用色生成 token 清单（**只列真实存在的值，不编造**）。
+    - 若项目**已有** token → 逐条提取真实 token 填入清单，并检查工具类映射覆盖度。
+16. **机器强制层（可选，默认建议开启）**：向用户说明——「什么放什么位置」「不许硬编码色值」写在文档里是**建议**（遵守率取决于模型当次注意力），写成 ESLint / dependency-cruiser / stylelint 规则才是**门禁**（不改就过不了检查）。
+    - 询问：**「是否接入机器强制层？」** 默认建议开启，生成 `ai-context/configs/` 下的配置模板。
+    - **必须强调接入顺序**（见 `configs/README.md`）：先定归属决策表 → 再翻译成规则 → **先 warn 跑存量基线** → 最后转 error。
+    - 若项目**已有** ESLint / dependency-cruiser / stylelint 配置 → 增量合并规则，不覆盖既有配置。
+    - 用户选择不接入 → 在 AGENTS.md「本项目对 SOP 的裁剪」写明「不接入机器强制层」，避免每次升级都重复询问。
 
 ---
 
@@ -103,10 +116,16 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 ├── AGENTS.md                          # 从 templates/AGENTS.md.template
 ├── sop.config.json                    # 【可选，默认生成】从 templates/sop.config.json.template（启用代码熵硬门禁）
 ├── ai-context/
-│   ├── project-map.md                 # 从 templates/ai-context/project-map.md.template
+│   ├── project-map.md                 # 从 templates/ai-context/project-map.md.template（含归属决策表 + 越界表 + 项目地雷）
 │   ├── prd.md                         # 从 templates/ai-context/prd.md.template
 │   ├── design.md                      # 从 templates/ai-context/design.md.template
+│   ├── design-tokens.md               # 从 templates/ai-context/design-tokens.md.template（前端项目；token 清单 + 硬编码值三分类判定）
 │   ├── quality-baseline.md            # 从 templates/ai-context/quality-baseline.md.template（初始化时采一次基线）
+│   ├── configs/                       # 【可选，阶段 1 第 16 问】从 templates/configs/（机器强制层配置模板）
+│   │   ├── README.md
+│   │   ├── eslint-boundaries.json
+│   │   ├── dependency-cruiser.json
+│   │   └── stylelint.json
 │   └── rules/
 │       ├── frontend.md                # 从 templates/ai-context/rules/frontend.md.template
 │       ├── platform.md                # 从 templates/ai-context/rules/platform.md.template
@@ -130,7 +149,8 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 
 ### 生成要求
 - **AGENTS.md**：**保持精简**——生成后目标 < 4,500 字符（`sop-check` 按此预算告警）。只放分级加载矩阵、读取纪律、文件索引、铁律与裁剪声明，细节一律放 rules。**§一 的「三步判级法」（数改动面 → 查高风险面 → 兜底）必须完整保留**——阈值可按项目调（如把 5 文件改成 3 文件），但不能删步骤或退回「只看信号描述」，否则 agent 无法稳定判级。填充「本项目对 SOP 的裁剪」→ `{{SOP_CUSTOMIZATIONS}}`（默认「暂无」；用户在阶段 1 第 13 问选择不生成 demo/ 时，写明「不生成 demo/（实践沉淀走 rules 已知陷阱）」；有其他裁剪逐条列出）。**文件索引表只保留本项目实际生成的框架文件**（React 项目删掉 vue/generic 行，反之同理）。
-- **project-map.md**：精确标注路由注册点（手写 / file-based / 插件注入），附构建命令速查。
+- **project-map.md**：精确标注路由注册点（手写 / file-based / 插件注入），附构建命令速查。**填充「归属决策表」**（`{{PAGE_DIR}}` / `{{SHARED_COMPONENT_DIR}}` / `{{UI_PRIMITIVE_DIR}}` / `{{FEATURE_DIR}}` / `{{SERVICE_DIR}}` / `{{STATE_DIR}}` / `{{TYPE_DIR}}` / `{{UTILS_DIR}}` / `{{CONST_DIR}}` / `{{STYLE_DIR}}`）——每行填**项目真实目录名**，「不要放哪」列写具体错误位置；**填充「允许导入关系」** `{{LAYER_ROWS}}`（将被翻译成 ESLint / dependency-cruiser 规则）；**填充「项目地雷」** `{{PROJECT_LANDMINES}}`（现象 | 根因 | 正确做法）。**收录标准：只写 agent 无法从代码直接读出的信息**——目录清单、技术栈、模块名不要写，读一遍代码就知道的东西每次会话都要付费且会稀释真正的约定。
+- **design-tokens.md**（前端项目，阶段 1 第 15 问）：**填充「Token 真源位置」** `{{TOKEN_SOURCE}}`（文件路径 + 深色模式切换方式）；**填充「当前 Token 清单」** `{{TOKEN_ROWS}}`（**只列真实存在的 token，不编造**；无 token 层则填「待建立」并提示用户）；**填充「工具类映射覆盖度」** `{{MAPPING_ROWS}}`；**填充「硬编码值三分类」**的 A 类形态清单与 `{{LITERAL_ROWS}}` 提升信号表；**填充「已知例外」** `{{TOKEN_EXCEPTIONS}}`（每条写明「为什么必须例外」——没有原因的例外会被后续当漏洞删掉）。命名体系一节按项目实际 token 族填写，**优先语义命名**（`action-primary` 用途 > `blue-500` 外观）。
 - **design.md**：若扫描到特殊机制（插件注入、全局单例、微前端等），必须用独立章节详解。
 - **quality-baseline.md**：按阶段 0 扫描到的命令填充 `{{TYPECHECK_COMMAND}}` / `{{BUILD_COMMAND}}` / `{{TEST_COVERAGE_COMMAND}}` / `{{LINT_COMMAND}}`；**实际跑一次**把数值填入基线表（不要编造，跑不出填「未采集」并注明原因）；`{{REGRESSION_GUARD_1/2}}` 定义「较基线劣化多少即拦截」，至少给一条具体阈值（无则填「暂不设红线」）。
 - **sop.config.json**（若阶段 1 第 14 问选择生成）：按项目实情填 `srcDirs` / `codeExtensions`（默认 `src` + 主流前端扩展名，后端项目改相应源码目录与扩展名）；其余阈值取模板默认。若用户选择不生成，跳过此文件。
@@ -302,7 +322,10 @@ AI 在对应阶段的行为：
 | 各 rules 文件的「用户声明的额外约束 / User Constraints」章节 | **保留**，不因模板升级而覆盖（用户口述内容是项目的永久资产） |
 | `project-map.md` / `design.md` / `prd.md` 中由扫描生成的项目事实 | **保留** |
 | 用户手写的章节 / 注释（不在模板骨架中的内容） | **保留** |
-| 模板新增的章节 / 文件（如 v2→v3 新增 `skill-routing.md`、`planning.md`；v3.3→v3.4 新增 `scripts/sop-check.mjs`；v3.9 新增 `specs/INDEX.md`） | **新增**，按模板骨架生成并填充 |
+| 模板新增的章节 / 文件（如 v2→v3 新增 `skill-routing.md`、`planning.md`；v3.3→v3.4 新增 `scripts/sop-check.mjs`；v3.9 新增 `specs/INDEX.md`；**v4.0 新增 `design-tokens.md` + `configs/`**） | **新增**，按模板骨架生成并填充 |
+| **v4.0 新增 `ai-context/design-tokens.md`** | **新增并填充**：扫描项目实际 token 与硬编码色值，生成清单。**不覆盖已有项目特定内容**。若项目无 token 层 → 生成一份标注「待建立」的初版清单，并告知用户需先建最小 token 层；若用户明确不要 → 在 AGENTS.md 裁剪区块声明「不生成 design-tokens」 |
+| **v4.0 新增 `ai-context/configs/`**（机器强制层） | **新增为配置模板，不直接接入**：生成后询问用户是否接入 ESLint / dependency-cruiser / stylelint。接入时**增量合并**进项目既有配置，不覆盖；**必须按 `configs/README.md` 的顺序**（先定归属表 → 翻译成规则 → 先 warn 跑存量 → 最后转 error）。用户不接入 → 在裁剪区块声明 |
+| **v4.0 `project-map.md` 新增「归属决策表 / 允许导入关系 / 项目地雷」** | **新增这三节**，用新扫描结果填充。已有内容（如路由机制）保留。项目地雷节若已有内容，**追加不覆盖** |
 | `specs/README.md` 的生命周期章节（v3.9：活跃 / 归档 / 废弃 + 阈值） | **用新版覆盖该章节**（无项目特定内容）；若项目已有自己的归档约定，保留项目版并在 AGENTS.md「裁剪」声明 |
 | `specs/` 下已有大量历史 spec | **不做自动归档**（会改动 git 历史）；只提示用户：「有 N 个已交付 spec 可归档，要现在处理吗？」得到确认后按 README 的规则执行 |
 | `AGENTS.md` 加载章节的结构调整（如 v3.8 把「依次读取全部文件」改为「三步判级法 + 加载表 + 读取纪律 + 文件索引」） | **按新模板重排该区块**，删除旧的「依次读取」清单（新索引表已覆盖）；**「三步判级法」必须保留**（可调阈值，不可删步骤）；铁律、核心认知、裁剪声明、用户手写章节保留 |

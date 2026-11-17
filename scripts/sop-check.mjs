@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// SOP-CHECK-VERSION: 3.9
+// SOP-CHECK-VERSION: 4.0
 // ==============================================================================
-// sop-check.mjs — SOP 健康检查（硬门禁 + 熵检测）
+// sop-check.mjs — SOP 健康检查（硬门禁 + 熵检测 + 设计体系检测）
 //
 // 在「已初始化 SOP 的项目根目录」运行。零依赖，仅需 Node。
 //   node scripts/sop-check.mjs            # 检查（WARN 不阻断）
@@ -20,8 +20,8 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
-const KIT_VERSION = "3.9"; // 与 kit 当前版本对齐，用于漂移检测
-const SCRIPT_VERSION = "3.9"; // 与头部 SOP-CHECK-VERSION 标记一致
+const KIT_VERSION = "4.0"; // 与 kit 当前版本对齐，用于漂移检测
+const SCRIPT_VERSION = "4.0"; // 与头部 SOP-CHECK-VERSION 标记一致
 const cwd = process.cwd();
 const args = new Set(process.argv.slice(2));
 const STRICT = args.has("--strict");
@@ -50,6 +50,34 @@ function walk(dir, acc = []) {
 
 // 统一输出为 / 分隔（Windows 下 relative() 会给反斜杠，与代码熵检查的写法不一致）
 const rel = (p) => relative(cwd, p).replace(/\\/g, "/");
+
+// glob → 正则。单次扫描转换，不要用「先 replace(**) 再 replace(*)」的链式写法——
+// 那会让第二次替换把第一次新产生的 * 也改掉，** 退化成「恰好一层目录」：
+//   **/dist/**  →  .[^/]*/dist/.[^/]*   （匹配不到 dist/x.js）
+//   src/**/*.tsx → src/.[^/]*/[^/]*\.tsx（匹配不到 src/A.tsx）
+// 规则：`**/` 匹配零或多层目录，`**` 匹配任意字符（含 /），`*` 匹配单层内任意字符。
+const globToRegExpSource = (g) => {
+  let out = "";
+  for (let i = 0; i < g.length; i++) {
+    const c = g[i];
+    if (c === "*") {
+      if (g[i + 1] === "*") {
+        i++;
+        // `**/` → 零或多层目录；`**` → 任意字符
+        if (g[i + 1] === "/") { i++; out += "(?:[^/]+/)*"; }
+        else out += ".*";
+      } else {
+        out += "[^/]*";
+      }
+    } else if (c === "?") {
+      out += "[^/]";
+    } else {
+      out += c.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+    }
+  }
+  return out;
+};
+const globToRegExp = (g) => new RegExp("^" + globToRegExpSource(g) + "$");
 
 // specs 活跃区 vs 归档区：archive/ 是冻结区，不再要求填占位符/四件套
 const specsDir = join(cwd, "specs");
@@ -231,9 +259,54 @@ if (nfrSource && !/非功能需求|NFR/.test(nfrSource)) {
 // 文件名当豁免（v3.8 模板的索引表固定含 quality-baseline.md，那样会让本检查恒不触发）。
 const baselinePath = join(cwd, "ai-context", "quality-baseline.md");
 const trimSection = sectionOf(agents, "裁剪");
-const baselineOptOut = /quality-baseline|质量基线/.test(trimSection) && /不生成|不要|无需|豁免|跳过|不采集|暂不/.test(trimSection);
+// 豁免必须「逐条声明」成立：主题词与否定词出现在同一行才算数。
+// 整节做 AND 判定会跨行误伤——「不生成 demo/」+「已接入机器强制层」两条声明
+// 会被组合成「强制层被豁免」，而实际含义恰好相反。
+const trimmedLines = trimSection.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+const declaredOptOut = (topicRe, negRe) => trimmedLines.some((l) => topicRe.test(l) && negRe.test(l));
+const NEG_OPT_OUT = /不生成|不接入|不启用|不要|无需|不设|不采集|豁免|跳过|暂不|不适用/;
+const baselineOptOut = declaredOptOut(/quality-baseline|质量基线/i, NEG_OPT_OUT);
 if (!existsSync(baselinePath) && !baselineOptOut) {
   warn("缺少 ai-context/quality-baseline.md——建议初始化时采一次质量基线（体积/覆盖率/tsc/lint），作为改动前后的对照基准。若项目主动不要，请在 AGENTS.md「本项目对 SOP 的裁剪」写明「不生成 quality-baseline」以免告警。");
+}
+
+// ── 7c. 设计 Token 体系（WARN，可裁剪）──
+// 为什么单独检查：「必须用设计 Token」写在 rules 里没有可执行性——agent 不知道有哪些 token。
+// token 清单是「用 Token」从口号变成指令的前提。缺失只 WARN（后端项目无此需求）。
+const tokensPath = join(cwd, "ai-context", "design-tokens.md");
+const tokensOptOut = declaredOptOut(
+  /design-tokens|设计\s*token|token\s*体系/i,
+  /不生成|不接入|不启用|不要|无需|不设|不采集|豁免|跳过|暂不|不适用|无\s*UI|后端|无\s*前端/
+);
+if (!existsSync(tokensPath) && !tokensOptOut) {
+  warn("缺少 ai-context/design-tokens.md——「必须用设计 Token」若无 token 清单则无法执行，AI 只能猜或硬编码。建议补上：token 真源位置、命名体系、当前清单、工具类映射覆盖度、硬编码值三分类判定。项目确不需要（后端 / 无 UI）请在 AGENTS.md「本项目对 SOP 的裁剪」写明「不生成 design-tokens」。");
+}
+
+// ── 7d. 机器强制层（WARN，可裁剪）──
+// 文档层是建议，lint/依赖检查才是门禁。两者都缺 = 约束纯靠模型注意力，遵守率不可控。
+// 检测任一强制层存在即可（有 eslint 边界规则 或 dependency-cruiser 或 stylelint 硬色值规则）。
+const hasBoundaryRule = (() => {
+  const files = ["eslint.config.js", "eslint.config.mjs", "eslint.config.cjs", ".eslintrc.json", ".eslintrc.js", ".eslintrc.cjs"];
+  for (const f of files) {
+    const t = readText(join(cwd, f));
+    if (t && /no-restricted-imports|import\/no-restricted-paths|boundaries\[/.test(t)) return true;
+  }
+  return false;
+})();
+const hasDepCruiser = existsSync(join(cwd, ".dependency-cruiser.json")) || existsSync(join(cwd, ".dependency-cruiser.js"));
+const hasStylelintColorRule = (() => {
+  for (const f of [".stylelintrc", ".stylelintrc.json", ".stylelintrc.js", "stylelint.config.js"]) {
+    const t = readText(join(cwd, f));
+    if (t && /color-no-hex|declaration-strict-value/.test(t)) return true;
+  }
+  return false;
+})();
+const guardOptOut = declaredOptOut(
+  /强制层|边界规则|依赖边界|dependency-cruiser|no-restricted-imports/i,
+  /不生成|不接入|不启用|不要|无需|不设|豁免|跳过|暂不|无\s*分层|后端/
+);
+if (!hasBoundaryRule && !hasDepCruiser && !hasStylelintColorRule && !guardOptOut) {
+  warn("未检测到任何机器强制层（eslint 边界规则 / dependency-cruiser / stylelint 硬色值规则）——「什么放什么位置」「不许硬编码色值」目前只是文档建议，遵守率取决于模型当次注意力。建议从 ai-context/configs/ 复制对应配置接入（见 configs/README.md 的启用顺序：先定归属表 → 再翻译成规则 → 先 warn 跑存量 → 最后转 error）。项目确不需要请在 AGENTS.md「本项目对 SOP 的裁剪」写明「不接入机器强制层」。");
 }
 
 // ── 8. specs 健康度（WARN）──
@@ -329,8 +402,8 @@ if (cfgText) {
     const checks = cfg.checks || {};
     const maxLines = Number.isFinite(cfg.maxFileLines) ? cfg.maxFileLines : 300;
     const ignores = (Array.isArray(cfg.ignore) ? cfg.ignore : ["**/*.test.*", "**/dist/**", "**/node_modules/**"])
-      .map((g) => g.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*"));
-    const isIgnored = (rel) => ignores.some((g) => new RegExp("^" + g + "$").test(rel));
+      .map(globToRegExp);
+    const isIgnored = (rel) => ignores.some((re) => re.test(rel));
 
     const codePaths = [];
     for (const d of srcDirs) {
@@ -352,10 +425,24 @@ if (cfgText) {
       const shown = hits.slice(0, limit).join("、");
       warn(`[代码熵] ${label}：${shown}${hits.length > limit ? ` 等 ${hits.length} 处` : ""}——${advice}`);
     };
-    const buckets = { long: [], console: [], any: [], dangerous: [], todo: [] };
+    const buckets = { long: [], console: [], any: [], dangerous: [], todo: [], color: [] };
     // 危险 API：需人工确认，只在配置开启时命中
     const dangerousRe = /dangerouslySetInnerHTML|\beval\s*\(|new\s+Function\s*\(|innerHTML\s*=/;
     const todoRe = /\b(TODO|FIXME|XXX)\b/;
+    // 硬编码颜色：只匹配「颜色字面量」形态，精确命中 A 类违规。
+    //   命中：-[#E1514C] / -[rgb(0,0,0,.04)] / -[hsl(0,0%,0%)]
+    //   不误伤：-[var(--color-primary)]（B 类 token 引用，形式合规）
+    //           -[min(420px,92vw)] / -[11px] / -[calc(...)] / -[state=open]（C 类几何与变体）
+    // 为什么不用 eslint-plugin-tailwindcss 的 no-arbitrary-value：那条规则一刀切所有任意值，
+    // 会误杀上面两类合规用法——误报率高的规则最终会被团队关掉，等于没有门禁。
+    // 色值部分要捕获完整（含尾部 ]），否则聚合出的键是截断的 "-[#fef2f1"，
+    // 显示时像 bug，也会让不同色值的前缀看起来可疑。
+    const colorLitRe = /-\[(#[0-9a-fA-F]{3,8}|rgba?\([^)\]]*\)|hsla?\([^)\]]*\))\]/g;
+    // 豁免：项目可在 sop.config.json 的 colorAllowPatterns 里声明例外路径
+    // （如富卡片等自有配色模块），与 design-tokens.md 的「已知例外」对应。
+    const colorAllow = (Array.isArray(cfg.colorAllowPatterns) ? cfg.colorAllowPatterns : [])
+      .map(globToRegExp);
+    const isColorAllowed = (relPath) => colorAllow.some((re) => re.test(relPath));
     for (const { p, rel } of codePaths) {
       const txt = readText(p);
       if (!txt) continue;
@@ -372,6 +459,15 @@ if (cfgText) {
         if (checks.anyType !== false && /:\s*any\b|\bas\s+any\b|<any>|Array<any>/i.test(code)) buckets.any.push(at);
         if (checks.dangerousApi === true && dangerousRe.test(code)) buckets.dangerous.push(at);
         if (checks.todoComment === true && todoRe.test(line)) buckets.todo.push(at);
+        // 硬编码颜色：按「值」聚合而非按「行」——同一色值出现多次说明该建 token，
+        // 聚合后能直接告诉 agent「这个值出现了 N 次，提升为 token」。
+        // 存 { at, val } 对象而不是拼字符串：色值本身可能含空格
+        // （如 -[rgba(0, 0, 0, 0.04)]），用空格切分位置与值会切错。
+        if (checks.hardcodedColor !== false && !isColorAllowed(rel)) {
+          for (const m of line.matchAll(colorLitRe)) {
+            buckets.color.push({ at, val: m[0] });
+          }
+        }
       });
     }
     report("超长源码文件", buckets.long, `超过 ${maxLines} 行，考虑拆分组件/模块`);
@@ -379,6 +475,20 @@ if (cfgText) {
     report("any 类型", buckets.any, "用具体类型或 unknown + 收窄替代");
     report("危险 API", buckets.dangerous, "确认是否必要且有消毒/鉴权");
     report("代码 TODO", buckets.todo, "未完成标记不应进入主干");
+    if (buckets.color.length) {
+      // 按字面量聚合：同一色值 ≥2 次即应提升为设计 token（见 design-tokens.md 提升信号表）
+      const byValue = new Map();
+      for (const { at, val } of buckets.color) {
+        if (!byValue.has(val)) byValue.set(val, []);
+        byValue.get(val).push(at);
+      }
+      const limit2 = Number.isFinite(cfg.maxWarningsPerCheck) ? cfg.maxWarningsPerCheck : 5;
+      const ranked = [...byValue.entries()].sort((a, b) => b[1].length - a[1].length);
+      const shown = ranked.slice(0, limit2)
+        .map(([val, locs]) => `${val} ×${locs.length}（${locs.slice(0, 2).join(", ")}${locs.length > 2 ? "…" : ""}）`)
+        .join("、");
+      warn(`[代码熵] 硬编码颜色字面量 ${buckets.color.length} 处：${shown}${ranked.length > limit2 ? ` 等 ${ranked.length} 个色值` : ""}——改用设计 token（见 ai-context/design-tokens.md）；同一色值出现 ≥2 次必须提升为 token。若为已声明的例外模块，在 sop.config.json 的 colorAllowPatterns 里登记。`);
+    }
   }
 }
 
