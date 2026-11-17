@@ -3,7 +3,7 @@ name: sop-init-frontend
 description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意前端项目后调用，自动扫描项目结构并生成 AGENTS.md + ai-context/ + rules/ + specs/ + quality-baseline（demo/ 可选）。适配 React/Vue/Taro/Next.js 等主流前端框架。
 ---
 
-<!-- SOP-VERSION: 4.1 -->
+<!-- SOP-VERSION: 4.2 -->
 
 # sop-init-frontend — 前端项目 AI 协作脚手架初始化（可插拔）
 
@@ -12,7 +12,7 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 
 ## 触发条件
 - **首次初始化**：用户在任意前端项目中说 **「初始化 SOP」「建立 AI 协作规范」「sop-init-frontend」「生成项目 rules」** 时执行。
-- **版本升级**：用户说 **「更新 SOP」「升级脚手架」「同步最新规范」「更新规范」** 时执行（详见文末「SOP 版本升级」章节）。仅当项目已存在 `AGENTS.md` 且顶部有 `SOP-VERSION` 标记时有效。
+- **版本升级**：用户说 **「更新 SOP」「升级脚手架」「同步最新规范」「更新规范」** 时执行（详见文末「SOP 版本升级」章节）。仅当项目已存在 `AGENTS.md` 且顶部有 `SOP-VERSION` 标记时有效。**不要求本机已安装本 Skill**——未安装时从 kit 的 git 仓库自举取得模板与官方脚本（见「SOP 版本升级」章节的「Skill 未安装时的自举路径」）。
 
 ---
 
@@ -29,6 +29,7 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 | 状态管理 | `package.json` 搜索 redux/pinia/zustand/mobx/recoil/jotai；记录库名 + 版本 |
 | 样式方案 | 搜索 scss/less/tailwind/styled-components/css-modules |
 | **设计 Token 层** ★ | 搜索 CSS 变量（`--color-` / `--spacing-` / `--text-`）、`tailwind.config.*` 的 `theme.extend`、`@theme`（v4）、`theme.ts`/`tokens.ts`；记录：token 定义在哪个文件、是否已映射为工具类（Tailwind theme / CSS 变量）、深色模式如何切换。**无 token 层也要记录**（后续要建） |
+| **本 kit 溯源** ★ | 读本 Skill 目录下的 `kit-source.json`（由 `install.sh` 安装时写入）→ 取 `version` / `commit` / `repo`；用于填 AGENTS.md 的 `{{KIT_VERSION}}` / `{{KIT_COMMIT}}` / `{{KIT_REPO}}`。**读不到就填 `unknown`，绝不编造 sha** |
 | **硬编码色值现状** ★ | 在源码中统计 `-[#hex]` / `-[rgb()]` 形态的出现与重复情况（同一色值 ≥2 次 = 该建 token 的信号）。**样式文件必须单独统计**：`.less`/`.css`/`.scss` 里的裸 `color: #fff;` 形态与 Tailwind 任意值不同，是最常见的色值漂移来源（实测某项目样式层 35 处、代码层 0 处）。同时确认 token 真源文件在哪（应整体豁免） |
 | **层级结构** ★ | 扫描顶层目录（pages/components/hooks/services/utils/types/store 等），推断出「展示层 / 业务层 / 数据层 / 共享层」，据此填 project-map 的归属决策表与允许导入关系 |
 | **现有强制层** ★ | 检查是否已有 ESLint 边界规则（`no-restricted-imports`）、dependency-cruiser 配置、stylelint 硬色值规则；记录存在性（决定新配置是「补充」还是「新建」） |
@@ -120,6 +121,7 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 │   ├── prd.md                         # 从 templates/ai-context/prd.md.template
 │   ├── design.md                      # 从 templates/ai-context/design.md.template
 │   ├── design-tokens.md               # 从 templates/ai-context/design-tokens.md.template（前端项目；token 清单 + 硬编码值三分类判定）
+│   ├── sop-upgrade.md                  # 从 templates/ai-context/sop-upgrade.md.template（★ SOP 升级唯一流程；含未装 Skill 时的 clone 自举路径）
 │   ├── quality-baseline.md            # 从 templates/ai-context/quality-baseline.md.template（初始化时采一次基线）
 │   ├── configs/                       # 【可选，阶段 1 第 16 问】从 templates/configs/（机器强制层配置模板）
 │   │   ├── README.md
@@ -154,9 +156,10 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 > 若本 Skill 目录下找不到该文件，说明安装不完整——应提示用户重跑 `scripts/install.sh`，而不是自己写一个。
 
 ### 生成要求
-- **AGENTS.md**：**保持精简**——生成后目标 < 4,500 字符（`sop-check` 按此预算告警）。只放分级加载矩阵、读取纪律、文件索引、铁律与裁剪声明，细节一律放 rules。**§一 的「三步判级法」（数改动面 → 查高风险面 → 兜底）必须完整保留**——阈值可按项目调（如把 5 文件改成 3 文件），但不能删步骤或退回「只看信号描述」，否则 agent 无法稳定判级。填充「本项目对 SOP 的裁剪」→ `{{SOP_CUSTOMIZATIONS}}`（默认「暂无」；用户在阶段 1 第 13 问选择不生成 demo/ 时，写明「不生成 demo/（实践沉淀走 rules 已知陷阱）」；有其他裁剪逐条列出）。**文件索引表只保留本项目实际生成的框架文件**（React 项目删掉 vue/generic 行，反之同理）。
+- **AGENTS.md**：**保持精简**——生成后目标 < 4,500 字符（`sop-check` 按此预算告警）。只放分级加载矩阵、读取纪律、文件索引、铁律与裁剪声明，细节一律放 rules。**§一 的「三步判级法」（数改动面 → 查高风险面 → 兜底）必须完整保留**——阈值可按项目调（如把 5 文件改成 3 文件），但不能删步骤或退回「只看信号描述」，否则 agent 无法稳定判级。填充「本项目对 SOP 的裁剪」→ `{{SOP_CUSTOMIZATIONS}}`（默认「暂无」；用户在阶段 1 第 13 问选择不生成 demo/ 时，写明「不生成 demo/（实践沉淀走 rules 已知陷阱）」；有其他裁剪逐条列出）。**文件索引表只保留本项目实际生成的框架文件**（React 项目删掉 vue/generic 行，反之同理）。**必须填入 kit 溯源信息**：`{{KIT_REPO}}` = kit 仓库地址（默认 `https://github.com/caidix/fe-sop-kit`）；`{{KIT_COMMIT}}` = 本次使用的 kit commit（读**本 Skill 目录下的 `kit-source.json`** 的 `commit` 字段，由 `install.sh` 安装时写入；读不到就填 `unknown`，**绝不编造 sha**）。这两个值落在 AGENTS.md 顶部第 2、3 行，是 `sop-check` 判断「远端是否已有新版本」的唯一依据。
 - **project-map.md**：精确标注路由注册点（手写 / file-based / 插件注入），附构建命令速查。**填充「归属决策表」**（`{{PAGE_DIR}}` / `{{SHARED_COMPONENT_DIR}}` / `{{UI_PRIMITIVE_DIR}}` / `{{FEATURE_DIR}}` / `{{SERVICE_DIR}}` / `{{STATE_DIR}}` / `{{TYPE_DIR}}` / `{{UTILS_DIR}}` / `{{CONST_DIR}}` / `{{STYLE_DIR}}`）——每行填**项目真实目录名**，「不要放哪」列写具体错误位置；**填充「允许导入关系」** `{{LAYER_ROWS}}`（将被翻译成 ESLint / dependency-cruiser 规则）；**填充「项目地雷」** `{{PROJECT_LANDMINES}}`（现象 | 根因 | 正确做法）。**收录标准：只写 agent 无法从代码直接读出的信息**——目录清单、技术栈、模块名不要写，读一遍代码就知道的东西每次会话都要付费且会稀释真正的约定。
 - **design-tokens.md**（前端项目，阶段 1 第 15 问）：**填充「Token 真源位置」** `{{TOKEN_SOURCE}}`（文件路径 + 深色模式切换方式）；**填充「当前 Token 清单」** `{{TOKEN_ROWS}}`（**只列真实存在的 token，不编造**；无 token 层则填「待建立」并提示用户）；**填充「工具类映射覆盖度」** `{{MAPPING_ROWS}}`；**填充「硬编码值三分类」**的 A 类形态清单与 `{{LITERAL_ROWS}}` 提升信号表；**填充「已知例外」** `{{TOKEN_EXCEPTIONS}}`（每条写明「为什么必须例外」——没有原因的例外会被后续当漏洞删掉）。命名体系一节按项目实际 token 族填写，**优先语义命名**（`action-primary` 用途 > `blue-500` 外观）。
+- **sop-upgrade.md**（**必须生成，不可选**）：从模板生成，填入 `{{KIT_REPO}}` / `{{KIT_BRANCH}}` / `{{KIT_VERSION}}` / `{{KIT_COMMIT}}`（取值来源同 AGENTS.md 的 kit 溯源信息）。**这是「未在本机安装 Skill 也能升级 SOP」的唯一流程依据**——缺了它，该项目的升级行为完全失控：AI 既不知道去哪里取官方模板与脚本，也就没有任何东西约束它，转头就会自行手写一份替代实现（真实事故：手写版检查脚本的 ignore 规则与扩展名表全坏，却看起来「有门禁」）。
 - **design.md**：若扫描到特殊机制（插件注入、全局单例、微前端等），必须用独立章节详解。
 - **quality-baseline.md**：按阶段 0 扫描到的命令填充 `{{TYPECHECK_COMMAND}}` / `{{BUILD_COMMAND}}` / `{{TEST_COVERAGE_COMMAND}}` / `{{LINT_COMMAND}}`；**实际跑一次**把数值填入基线表（不要编造，跑不出填「未采集」并注明原因）；`{{REGRESSION_GUARD_1/2}}` 定义「较基线劣化多少即拦截」，至少给一条具体阈值（无则填「暂不设红线」）。
 - **sop.config.json**（若阶段 1 第 14 问选择生成）：按项目实情填 `srcDirs` / `codeExtensions`（默认 `src` + 主流前端扩展名，后端项目改相应源码目录与扩展名）；**必须填 `styleExtensions`**（样式文件扩展名，默认 `.less/.css/.scss/.sass/.styl`）——否则样式层的硬编码色值检查完全扫不到（代码熵检查对样式文件不适用，但色值检查适用）。`colorAllowPatterns` 必须登记 **token 真源文件**（如 `src/styles/tokens.css`），否则真源里的定义会被误报。其余阈值取模板默认。若用户选择不生成，跳过此文件。
@@ -313,11 +316,27 @@ AI 在对应阶段的行为：
 ### 触发
 用户说 **「更新 SOP」「升级脚手架」「同步最新规范」「更新规范」**，且项目已存在带 `SOP-VERSION` 标记的 `AGENTS.md`。
 
-### 版本对比
-1. 读取项目 `AGENTS.md` 顶部 `<!-- SOP-VERSION: x.y -->`
-2. 读取本 kit 的当前版本（见 README 顶部的版本号 / 本文件版本声明）
-3. 相同 → 提示"已是最新，无需更新"
-4. 项目版本较旧 → 进入增量更新
+### 版本对比（以 commit 为准，不只比版本号）
+
+1. 读取项目 `AGENTS.md` 顶部的 `<!-- SOP-KIT-REPO: ... -->` 与 `<!-- SOP-KIT-COMMIT: <sha> -->`
+2. 执行 `git ls-remote --heads <repo> <branch>` 取远端分支最新 sha
+3. sha **等于**项目记录的 commit → 提示"已是最新，无需更新"
+4. sha **不等于**项目记录的 commit → **远端有更新**，进入增量更新
+5. `git ls-remote` 失败（无网络 / 无 git / 代理阻断）→ **不中断升级**，按当前已安装版本继续，并在报告里注明「未能检测远端版本」
+
+> **为什么比对 commit 而不是版本号**：同一版本号内发生模板修补很常见，只比版本号会漏检——那正是「项目脚本停留在旧版、文档宣称的检查能力与实际脱节」的来源。
+> `sop-check` 已内置该检测（每次运行都打印「kit 远端」状态并在新时告警），无需手动跑。
+
+### Skill 未安装时的自举路径 ★
+
+升级动作依赖 kit 的模板与官方脚本。**本机没装 Skill 时**（同事的机器、CI 环境、或只 clone 了项目代码）：
+
+1. `git clone --depth 1 --branch <branch> <repo> <临时目录>`——临时目录放在**项目内** `.workbuddy/` 下（不写系统目录，避免权限与沙箱问题）
+2. 网络不稳定时**最多重试 3 次**再判定失败
+3. 从 `<临时目录>/skills/sop-init-frontend/` 取 `templates/` 与 `scripts/sop-check.mjs`
+4. 后续按项目内 `ai-context/sop-upgrade.md` 的流程执行（那份文件已写在项目里，与本节内容一致）
+
+> ⚠️ 无论走哪条路径，**模板与官方脚本都必须取自 kit 仓库，禁止手写替代实现**。
 
 ### 增量更新规则（核心：不丢失项目内容）
 
@@ -335,21 +354,27 @@ AI 在对应阶段的行为：
 | `specs/README.md` 的生命周期章节（v3.9：活跃 / 归档 / 废弃 + 阈值） | **用新版覆盖该章节**（无项目特定内容）；若项目已有自己的归档约定，保留项目版并在 AGENTS.md「裁剪」声明 |
 | `specs/` 下已有大量历史 spec | **不做自动归档**（会改动 git 历史）；只提示用户：「有 N 个已交付 spec 可归档，要现在处理吗？」得到确认后按 README 的规则执行 |
 | `AGENTS.md` 加载章节的结构调整（如 v3.8 把「依次读取全部文件」改为「三步判级法 + 加载表 + 读取纪律 + 文件索引」） | **按新模板重排该区块**，删除旧的「依次读取」清单（新索引表已覆盖）；**「三步判级法」必须保留**（可调阈值，不可删步骤）；铁律、核心认知、裁剪声明、用户手写章节保留 |
-| **脚本类文件**（`scripts/sop-check.mjs` 等，无项目特定内容） | **一律以 kit 最新版整体覆盖**，无论新增还是升级。源文件在本 Skill 目录的 `scripts/` 下（**不是** kit 仓库根的 `scripts/`）。对比项目脚本头部 `SOP-CHECK-VERSION` 与 kit 版本，落后即覆盖——否则文档宣称的检查能力会与实际脚本脱节。**若项目脚本缺少 `SOP-CHECK-VERSION` 头，说明它是手写的简化版，必须整体覆盖**（手写版的 ignore / 扩展名逻辑不可信） |
+| **脚本类文件**（`scripts/sop-check.mjs` 等，无项目特定内容） | **一律以 kit 最新版整体覆盖**，无论新增还是升级。源文件在 kit 仓库的 `skills/sop-init-frontend/scripts/` 下（**不是** kit 仓库根的 `scripts/`）。**本机已装 Skill 时从 Skill 目录取；未装 Skill 时从克隆下来的 kit 同路径取**。对比项目脚本头部 `SOP-CHECK-VERSION` 与 kit 版本，落后即覆盖——否则文档宣称的检查能力会与实际脚本脱节。**若项目脚本缺少 `SOP-CHECK-VERSION` 头，说明它是手写的简化版，必须整体覆盖**（手写版的 ignore / 扩展名逻辑不可信） |
 | 模板结构调整（如生命周期新增阶段） | **更新** `AGENTS.md` 导航 + `workflow.md` 阶段表 |
 | `rules/frontend.md` 等通用规则模板的措辞修订 | **合并**：以新模板为准，但保留项目特定的 INSERT 内容 |
 
 ### 升级分两步（务必向用户讲清楚这个模型）
-- **第一步（kit 侧，一次性）**：用户把本 kit 更新到最新版（`git pull`）+ 重跑 `scripts/install.sh` 升级 Skill。Skill 是用户级安装的，升级一次所有项目通用——**这一步不在项目内执行**。
+- **第一步（kit 侧，一次性）**：用户把本 kit 更新到最新版（`git pull`）+ 重跑 `scripts/install.sh` 升级 Skill。Skill 是用户级安装的，升级一次所有项目通用——**这一步不在项目内执行**。更新前先确认远端是否有新提交：`git ls-remote --heads <repo> master` 与本地 `git rev-parse HEAD` 对比，不同即有更新。
 - **第二步（项目侧，逐个项目）**：在每个已初始化的项目里触发本流程，把新版内容同步刷新到该项目。以下「更新流程」讲的都是第二步。
+
+> **第二步不依赖第一步**：只要 kit 仓库可达，AI 可按上面的「Skill 未安装时的自举路径」自行取得模板与脚本完成升级。因此**「更新 SOP」不应以「本机是否装了 Skill」为前提条件**。
 
 ### 更新流程（第二步：项目侧同步）
 ```
-读项目 SOP-VERSION
+读项目 SOP-KIT-COMMIT
   │
-  ├─→ 对比 kit 版本
+  ├─→ git ls-remote 取远端 sha 并对比
   │     ├─ 相同 → 提示已最新，结束
-  │     └─ 较旧 → 继续
+  │     └─ 不同 → 继续
+  │
+  ├─→ 取得 kit 模板与官方脚本
+  │     ├─ 本机已装 Skill → 取自 Skill 目录
+  │     └─ 未装 Skill → clone kit 到项目内临时目录后取自其中
   │
   ├─→ 重新扫描项目（阶段 0 逻辑）
   │
@@ -368,7 +393,8 @@ AI 在对应阶段的行为：
   │     └─ 源文件：本 Skill 目录的 scripts/sop-check.mjs
   │        若项目现有脚本缺少 SOP-CHECK-VERSION 头 → 它是手写简化版，必须整体覆盖
   │
-  ├─→ 更新 AGENTS.md 的 SOP-VERSION 标记 + 导航链接
+  ├─→ 更新 AGENTS.md 的 SOP-VERSION / SOP-KIT-COMMIT 标记 + 导航链接
+  │     （SOP-KIT-COMMIT 写成新取的远端 sha；同步更新 sop.config.json 的 kit.version / kit.commit）
   │
   ├─→ 跑一次 node scripts/sop-check.mjs 确认升级后健康（有 WARN 就说明原因或修复）
   │     └─ 出现「规则体量预算」告警时：报告 AGENTS.md / rules 的实际字符数与预算，
@@ -390,3 +416,4 @@ AI 在对应阶段的行为：
 ### 安全兜底
 - **不做自动 git 备份 / 代提交**：kit 只改文件，不碰项目 git。变更报告输出后，**提示用户在项目仓库自行提交 commit**（如 `chore: 更新 SOP 至 vX.Y`）——用户自己的这个 commit 就是唯一回退点，可用 `git revert` 整体回退。
 - 任何无法安全合并的冲突（如用户大量改写了模板骨架）→ 暂停并询问用户：保留用户版 / 采用新模板 / 手动合并；冲突未解决前不要输出「升级完成」。
+- **网络不可达**：kit 仓库拉不到时**保留现有文件不动**，明确报告「无法获取最新 kit（网络不可达），请联网后重试，或手动 clone 后再执行」。**不得**用手写模板或手写脚本顶替——静默降级比明确失败更危险。

@@ -14,6 +14,13 @@
   },
   "ignore": ["**/*.test.*", "**/*.spec.*", "**/node_modules/**", "**/dist/**", "**/build/**"],
   "colorAllowPatterns": [],
+  "kit": {
+    "repo": "https://github.com/caidix/fe-sop-kit",
+    "branch": "master",
+    "version": "4.2",
+    "commit": "",
+    "checkRemote": true
+  },
   "budgets": {
     "agentsMaxChars": 4500,
     "ruleMaxChars": 10000,

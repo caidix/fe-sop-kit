@@ -13,7 +13,7 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const KIT_VERSION = "4.1";
+const KIT_VERSION = "4.2";
 const kitDir = process.cwd();
 const fails = [];
 const warns = [];
@@ -111,6 +111,55 @@ if (!/skills\/sop-init-frontend\/scripts\/sop-check\.mjs/.test(skill)) {
 // install.sh 必须把 skills/ 整目录复制过去（脚本在 skills/ 下才随 Skill 到达）
 if (!/cp -Rf "\$src"/.test(installSh)) {
   fail("install.sh 未整目录复制 skills/——Skill 内新增的 scripts/ 不会随安装分发。");
+}
+
+// ── 3d. 自举链路完整（未装 Skill 也能升级 SOP）──
+// 真实场景：同事的机器 / CI 环境没装本 Skill，却要升级项目内的 SOP。
+// 此时 AI 只能靠项目里写下的流程去 git 拉 kit。缺任何一环，升级行为就完全失控——
+// AI 找不到官方模板与脚本，转头自行手写替代实现（v4.1 的同一类事故）。
+// 三处必须同时存在：① 项目内的升级流程文件；② 模板里指向 git 源的占位符；③ 脚本里的远端检测。
+const upgradeTpl = join(tplRoot, "ai-context/sop-upgrade.md.template");
+if (!existsSync(upgradeTpl)) {
+  fail("v4.2 关键模板缺失：templates/ai-context/sop-upgrade.md.template（未装 Skill 时升级 SOP 的唯一流程依据，缺了升级行为会失控并退化为手写替代实现）");
+} else {
+  const utpl = readText(upgradeTpl) || "";
+  if (!/git clone/.test(utpl)) fail("sop-upgrade.md.template 未给出 git clone 自举命令——未装 Skill 的用户无从取得官方模板与脚本。");
+  if (!/禁止手写替代实现|禁止手写/.test(utpl)) fail("sop-upgrade.md.template 未禁止手写替代实现——AI 拿不到官方脚本时会自行手写，检查能力静默失效。");
+}
+// AGENTS.md 模板必须携带 kit 溯源标记（远端检测的唯一依据）
+// 注意：此处不能用第 7 节的 agentsTplPath——const 有暂时性死区，会直接抛 ReferenceError。
+const agentsTpl = readText(join(tplRoot, "AGENTS.md.template")) || "";
+if (!/SOP-KIT-REPO:\s*\{\{KIT_REPO\}\}/.test(agentsTpl)) {
+  fail("AGENTS.md.template 缺少 SOP-KIT-REPO 标记——sop-check 无法知道去哪里检测远端版本。");
+}
+if (!/SOP-KIT-COMMIT:\s*\{\{KIT_COMMIT\}\}/.test(agentsTpl)) {
+  fail("AGENTS.md.template 缺少 SOP-KIT-COMMIT 标记——无法比对本地与远端 commit，只能退化成比版本号（会漏检「版本号未变但模板已改」）。");
+}
+// sop.config.json 模板必须提供 kit 字段（repo / branch / commit / checkRemote）
+const cfgTpl = readText(join(tplRoot, "sop.config.json.template")) || "";
+if (!/"kit"\s*:/.test(cfgTpl)) {
+  fail("sop.config.json.template 缺少 kit 字段——远端版本检测无从配置 repo 与 commit。");
+} else {
+  try {
+    const cfg = JSON.parse(cfgTpl);
+    for (const k of ["repo", "branch", "version", "commit", "checkRemote"]) {
+      if (!(k in (cfg.kit || {}))) fail(`sop.config.json.template 的 kit 字段缺少 "${k}"——远端版本检测配置不完整。`);
+    }
+  } catch {
+    fail("sop.config.json.template 不是合法 JSON——sop-check 会静默跳过全部配置。");
+  }
+}
+// sop-check 必须真的实现了远端检测（否则 AGENTS.md 里的标记形同虚设）
+const sopCheckSrc = readText(skillScriptPath) || "";
+if (!/ls-remote/.test(sopCheckSrc)) {
+  fail("sop-check.mjs 未实现 git ls-remote 远端检测——AGENTS.md 的 SOP-KIT-COMMIT 标记将形同虚设，「git 上是否已有新版本」永远得不到回答。");
+}
+if (!/SOP-KIT-COMMIT/.test(sopCheckSrc)) {
+  fail("sop-check.mjs 未读取 SOP-KIT-COMMIT 标记——远端检测无法与项目记录的 commit 对比。");
+}
+// install.sh 必须写 kit 溯源信息（否则 {{KIT_COMMIT}} 永远填不上真值）
+if (!/kit-source\.json/.test(installSh)) {
+  fail("install.sh 未写入 kit-source.json——初始化时 {{KIT_COMMIT}} 只能填 unknown，远端检测形同虚设。");
 }
 
 // ── 4. 占位符命名规范（全大写下划线）──

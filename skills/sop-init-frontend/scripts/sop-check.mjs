@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// SOP-CHECK-VERSION: 4.1
+// SOP-CHECK-VERSION: 4.2
 // ==============================================================================
 // sop-check.mjs — SOP 健康检查（硬门禁 + 熵检测 + 设计体系检测）
 //
@@ -19,9 +19,10 @@
 
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
+import { execFileSync } from "node:child_process";
 
-const KIT_VERSION = "4.1"; // 与 kit 当前版本对齐，用于漂移检测
-const SCRIPT_VERSION = "4.1"; // 与头部 SOP-CHECK-VERSION 标记一致
+const KIT_VERSION = "4.2"; // 与 kit 当前版本对齐，用于漂移检测
+const SCRIPT_VERSION = "4.2"; // 与头部 SOP-CHECK-VERSION 标记一致
 const cwd = process.cwd();
 const args = new Set(process.argv.slice(2));
 const STRICT = args.has("--strict");
@@ -116,6 +117,45 @@ if (!agents) {
   const m = agents.match(/SOP-VERSION:\s*([\d.]+)/);
   if (!m) fail("AGENTS.md 缺少 SOP-VERSION 标记（升级判定依据，请勿删除）。");
   else if (m[1] !== KIT_VERSION) warn(`版本漂移：项目 SOP-VERSION=${m[1]}，kit 当前=${KIT_VERSION}。建议执行「更新 SOP」。`);
+}
+
+// ── 1b. kit 远端版本检测（WARN，可关闭）──
+// 回答「git 上是否已经有新版本」。以 commit 为准而非版本号：同一版本号内发生模板修补
+// 很常见，只比版本号会漏检——那正是「项目脚本停留在旧版、文档宣称的检查能力与实际脱节」
+// 的来源。`git ls-remote` 一次请求即可拿到远端分支 sha，不必 clone。
+// 网络不可达 / 无 git → 静默降级，绝不阻断检查（离线 CI 也必须能跑）。
+const kitCfg = projectCfg && typeof projectCfg.kit === "object" ? projectCfg.kit : null;
+const kitRepo = (kitCfg && kitCfg.repo) || (agents ? (agents.match(/SOP-KIT-REPO:\s*(\S+)/) || [])[1] : "") || "";
+const kitBranch = (kitCfg && kitCfg.branch) || "master";
+const kitLocalCommitRaw = (kitCfg && kitCfg.commit) || (agents ? (agents.match(/SOP-KIT-COMMIT:\s*(\S+)/) || [])[1] : "") || "";
+const kitLocalVersion = (kitCfg && kitCfg.version) || (agents ? (agents.match(/SOP-VERSION:\s*([\d.]+)/) || [])[1] : "") || "";
+// 只认真正的 sha：手写安装等场景可能写入 "unknown" 之类占位
+const isSha = (s) => /^[0-9a-f]{7,40}$/i.test(String(s || ""));
+const kitLocalCommit = isSha(kitLocalCommitRaw) ? kitLocalCommitRaw.toLowerCase() : "";
+const kitRemoteEnabled = !(kitCfg && kitCfg.checkRemote === false);
+let kitRemoteSha = "";
+let kitRemoteChecked = false;
+if (kitRepo && kitRemoteEnabled) {
+  // 代理隧道不稳定时 git 会间歇失败（CONNECT tunnel failed / 502），重试一次再判定不可达。
+  // `-c http.version=HTTP/1.1`：规避 Windows git 的 schannel + HTTP/2 close_notify 握手失败（对所有远端无害）。
+  for (let attempt = 0; attempt < 2 && !kitRemoteSha; attempt++) {
+    try {
+      const out = execFileSync("git", ["-c", "http.version=HTTP/1.1", "ls-remote", "--heads", kitRepo, kitBranch], {
+        encoding: "utf8", timeout: 6000, stdio: ["ignore", "pipe", "ignore"], windowsHide: true,
+      });
+      const hit = out.split("\n").map((l) => l.trim()).find((l) => l.endsWith(`refs/heads/${kitBranch}`));
+      if (hit) { kitRemoteSha = (hit.split(/\s+/)[0] || "").toLowerCase(); kitRemoteChecked = true; }
+    } catch {
+      // git 不可用 / 网络不可达 / 代理阻断 → 静默降级，绝不阻断检查
+    }
+  }
+}
+if (kitRemoteChecked && kitRemoteSha) {
+  if (!kitLocalCommit) {
+    warn(`未记录 kit commit（AGENTS.md 的 SOP-KIT-COMMIT 或 sop.config.json 的 kit.commit）——无法判断是否为最新；执行「更新 SOP」可补齐（流程见 ai-context/sop-upgrade.md）。`);
+  } else if (kitRemoteSha !== kitLocalCommit) {
+    warn(`kit 远端有新版本：项目基于 commit ${kitLocalCommit.slice(0, 7)}（kit v${kitLocalVersion}），远端 ${kitBranch} 最新 ${kitRemoteSha.slice(0, 7)}。建议执行「更新 SOP」——流程见 ai-context/sop-upgrade.md。`);
+  }
 }
 
 // ── 2. 必要 rules 文件（FAIL）──
@@ -560,11 +600,23 @@ const ok = errors.length === 0;
 
 const fmtK = (n) => (n >= 1000 ? (n / 1000).toFixed(1) + "K" : String(n));
 if (JSON_OUT) {
-  console.log(JSON.stringify({ ok, kitVersion: KIT_VERSION, scriptVersion: SCRIPT_VERSION, strict: STRICT, metrics, budgets: budgetsOff ? "off" : BUDGETS, fails, warns }, null, 2));
+  console.log(JSON.stringify({ ok, kitVersion: KIT_VERSION, scriptVersion: SCRIPT_VERSION, strict: STRICT, metrics, budgets: budgetsOff ? "off" : BUDGETS, kit: { repo: kitRepo, branch: kitBranch, localCommit: kitLocalCommit || null, remoteSha: kitRemoteSha || null, remoteChecked: kitRemoteChecked }, fails, warns }, null, 2));
 } else {
+  const kitState = !kitRepo
+    ? "未配置 kit 来源（升级时补 SOP-KIT-REPO）"
+    : !kitRemoteEnabled
+      ? "已关闭远端检测（kit.checkRemote=false）"
+      : !kitRemoteChecked
+        ? "远端未检测到（网络不可达或无 git）"
+        : !kitLocalCommit
+          ? `远端 ${kitRemoteSha.slice(0, 7)}｜本地未记录 commit`
+          : kitRemoteSha === kitLocalCommit
+            ? `远端 ${kitRemoteSha.slice(0, 7)}｜已是最新`
+            : `远端 ${kitRemoteSha.slice(0, 7)}｜本地 ${kitLocalCommit.slice(0, 7)}｜有更新`;
   console.log("\n🩺 SOP 健康检查");
   console.log(`   项目：${cwd}`);
   console.log(`   kit 版本基准：${KIT_VERSION} ｜ 脚本版本：${SCRIPT_VERSION}${STRICT ? "  (strict)" : ""}`);
+  console.log(`   kit 远端：${kitState}`);
   console.log(`   规则体量：AGENTS.md ${fmtK(metrics.agentsChars)} 字符 ｜ rules 合计 ${fmtK(metrics.rulesChars)} 字符${metrics.maxRuleChars ? `（最大 ${metrics.maxRuleFile} ${fmtK(metrics.maxRuleChars)}）` : ""}`);
   console.log(`   （脚本版本落后于 kit 版本时，用 kit 最新 scripts/sop-check.mjs 整体覆盖本脚本）\n`);
   if (fails.length) { console.log("❌ 失败项："); fails.forEach((m) => console.log("   - " + m)); }

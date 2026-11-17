@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# yh-sop-fe-kit 互动式安装脚本  v4.1
+# yh-sop-fe-kit 互动式安装脚本  v4.2
 #
 # 自有 Skill（本仓库维护，始终安装）：
 #   - sop-init-frontend  — 提供「初始化 SOP」触发词
@@ -44,6 +44,28 @@ REACT_SKILL_CMD="npx skills add vercel-labs/agent-skills"
 VUE_SKILL_CMD="npx skills add vuejs-ai/skills"
 
 # ── 安装用户级 Skill ──
+# 记录 kit 溯源信息：项目初始化时要把真实 commit 写进 AGENTS.md 的 SOP-KIT-COMMIT，
+# 才能支持「比对远端 commit 判断 git 上是否已有新版本」。没有这个信息，
+# 版本检测只能退化成比版本号——那会漏掉「版本号未变但模板已改」的情况。
+write_kit_source() {
+  local skill_dir="$1"
+  local version commit repo
+  version="$(grep -oE 'SOP-VERSION: [0-9.]+' "$KIT_DIR/skills/sop-init-frontend/SKILL.md" 2>/dev/null | head -1 | awk '{print $2}')"
+  commit="$(git -C "$KIT_DIR" rev-parse HEAD 2>/dev/null || echo unknown)"
+  repo="$(git -C "$KIT_DIR" config --get remote.origin.url 2>/dev/null || echo unknown)"
+  [ -z "$version" ] && version="unknown"
+  [ -z "$commit" ] && commit="unknown"
+  [ -z "$repo" ] && repo="unknown"
+  cat > "$skill_dir/kit-source.json" <<EOF
+{
+  "version": "$version",
+  "commit": "$commit",
+  "repo": "$repo",
+  "installedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+}
+
 install_to() {
   local tool="$1"
   local skills_dir
@@ -66,6 +88,14 @@ install_to() {
     echo "  ✓ $skill"
   done
 
+  # 溯源信息只对 sop-init-frontend 有意义（它是唯一会向项目写入 SOP-VERSION/COMMIT 的 Skill）。
+  # 源目录与目标目录相同时跳过，避免在 kit 仓库里生成脏文件。
+  local installed_sop="$skills_dir/sop-init-frontend"
+  if [[ -d "$installed_sop" && "$installed_sop" != "$KIT_DIR/skills/sop-init-frontend" ]]; then
+    write_kit_source "$installed_sop"
+    echo "    ↳ kit 溯源：$(cat "$installed_sop/kit-source.json" 2>/dev/null | tr -d '\n' | sed 's/  */ /g' | cut -c1-120)"
+  fi
+
   echo "✅ 自有 Skill 已安装到 $skills_dir"
 }
 
@@ -73,7 +103,7 @@ install_to() {
 interactive_choose() {
   echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "  yh-sop-fe-kit v4.1 — Skill 安装"
+  echo "  yh-sop-fe-kit v4.2 — Skill 安装"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo ""
   echo "  自有 Skill（始终安装）："
@@ -219,3 +249,10 @@ echo "🎉 安装完成！"
 echo "   1. 重启对应的 AI 工具"
 echo "   2. 在任意前端项目输入「初始化 SOP」→ 生成项目规范"
 echo "   3. 已初始化项目输入「更新 SOP」→ 同步最新 rules"
+echo "   4. 更新 kit 本体：git -C <kit 目录> pull && bash scripts/install.sh"
+echo "      （Skill 是用户级安装，升级一次所有项目通用）"
+echo ""
+echo "   💡 未在本机安装 Skill 的同事，也能升级项目内的 SOP："
+echo "      git clone --depth 1 https://github.com/caidix/fe-sop-kit.git <临时目录>"
+echo "      然后按 <临时目录>/skills/sop-init-frontend/templates/ai-context/sop-upgrade.md.template"
+echo "      的流程执行（项目内的 ai-context/sop-upgrade.md 已写明该流程）。"

@@ -1,8 +1,10 @@
-<!-- SOP-VERSION: 4.1 -->
+<!-- SOP-VERSION: 4.2 -->
+<!-- SOP-KIT-REPO: {{KIT_REPO}} -->
+<!-- SOP-KIT-COMMIT: {{KIT_COMMIT}} -->
 # AGENTS.md — {{PROJECT_NAME}} 前端 AI 协作入口
 
 > 本文件是 CodeBuddy / WorkBuddy 进入本项目的**统一入口**，只放路由、铁律与加载纪律；细节在 `ai-context/rules/`，**按需读取，不要通读**。
-> 顶部 `SOP-VERSION` 标记用于「更新 SOP」时对比版本，请勿删除。
+> 顶部 `SOP-VERSION` / `SOP-KIT-COMMIT` 标记用于「更新 SOP」时比对版本与 commit，**请勿删除**。
 
 ---
 
@@ -44,6 +46,7 @@
 | `ai-context/prd.md` | 产品定位、模块清单 | 业务背景不明 |
 | `ai-context/design.md` | 架构与项目特有机制 | 改架构 / 动特有机制 |
 | `ai-context/design-tokens.md` | 设计 token 清单、**硬编码值三分类判定** | 动颜色/间距/字号 / 判样式写法 |
+| `ai-context/sop-upgrade.md` | **SOP 升级唯一流程**（版本检测 / 取 kit 模板与官方脚本 / 增量合并 / 降级） | 用户说「更新 SOP」 |
 | `specs/INDEX.md` | 历史 spec 索引（一行一个结论） | 查「当初为什么这么做」 |
 | `ai-context/quality-baseline.md` | 质量基线（体积/覆盖率/tsc/lint） | 性能敏感改动 / 发版前 |
 | `rules/frontend.md` | 代码风格、设计决策卡、NFR | 前端任务（L1+） |
@@ -55,7 +58,7 @@
 | `rules/skill-routing.md` | Skill 调度与降级策略 | 需激活 Skill |
 | `rules/platform.md` | 多端部署与验证矩阵 | 多端项目 |
 
-> 外部 Skill 为一次性安装（React：`npx skills add vercel-labs/agent-skills`；Vue：`npx skills add vuejs-ai/skills`），详见 `rules/skill-routing.md`；未安装会自动降级，不影响开发。
+> 外部 Skill 一次性安装（React / Vue 官方包），未装会自动降级，不影响开发 → 见 `rules/skill-routing.md`。
 
 ## 四、项目一句话
 {{PROJECT_ONELINER}}
@@ -83,8 +86,10 @@
 
 ## 十、SOP 健康检查
 
-`node scripts/sop-check.mjs`（加 `--strict` 让 WARN 阻断、`--json` 输出机器可读）——检查结构、版本漂移、占位符、TODO、**规则体量预算**、specs 四件套与生命周期（活跃 > 8、已交付 > 90 天未归档会提醒）、**设计 token 体系与机器强制层是否存在**、代码熵（需 `sop.config.json` 含扫描字段，否则静默）。
+`node scripts/sop-check.mjs`（`--strict` 让 WARN 阻断、`--json` 机器可读）——检查结构、版本漂移、**kit 远端是否有新版本**、占位符、TODO、规则体量预算、specs 生命周期、设计 token 体系、机器强制层、代码熵（硬编码色值分代码层 / 样式层；需 `sop.config.json` 含扫描字段，否则静默）。
 
-> **代码熵**含硬编码颜色字面量扫描，分两层：**代码层**命中 `-[#hex]` / `-[rgb()]` 形态（不误伤 `var()` 引用与几何任意值）；**样式层**命中 `.less`/`.css`/`.scss` 里的原生声明 `color: #fff;`（由 `styleExtensions` 控制，token 真源文件须在 `colorAllowPatterns` 豁免）。
+「更新 SOP」时 `scripts/sop-check.mjs` **用 kit 最新版整体覆盖**（源在 kit 仓库 `sop-init-frontend` Skill 目录的 `scripts/` 下，**禁止手写替代实现**）。
 
-「更新 SOP」时 `scripts/sop-check.mjs` **用 kit 最新版整体覆盖**（脚本无项目特定内容，源在 `sop-init-frontend` Skill 的 `scripts/` 目录下）。
+## 十一、SOP 升级（AI 必读）
+
+用户说「更新 SOP / 升级脚手架 / 同步最新规范」时：**读 `ai-context/sop-upgrade.md` 并按其流程执行**——含版本检测（比对远端 commit）、取 kit 官方模板与脚本、增量合并、网络不可达时的降级。

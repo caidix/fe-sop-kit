@@ -1,8 +1,8 @@
-<!-- SOP-VERSION: 4.1 -->
+<!-- SOP-VERSION: 4.2 -->
 
 # sop-frontend-kit — 前端项目 AI 协作脚手架（可插拔）
 
-> **SOP 版本：v4.1**
+> **SOP 版本：v4.2**
 
 一套**可复用的前端 AI 协作规范模板包**。放到任意前端项目中调用一次，AI 自动扫描项目结构并生成 `AGENTS.md` + `ai-context/` + `rules/` + `specs/`（+ 可选的 `demo/`）。支持 CodeBuddy / WorkBuddy 双工具。
 
@@ -112,7 +112,7 @@ git pull                    # 更新 kit 到最新版
 
 在**每个已初始化的项目**里对 AI 说 **「更新 SOP」** 或 **「同步最新规范」**，AI 会：
 
-1. 读取项目 `AGENTS.md` 顶部的 `SOP-VERSION` 标记，对比 kit 当前版本；相同则提示「已是最新」
+1. 读取项目 `AGENTS.md` 顶部的 `SOP-KIT-REPO` / `SOP-KIT-COMMIT`，用 `git ls-remote` 取远端分支最新 sha 并比对；相同则提示「已是最新」
 2. **增量合并**——保留你已填充的内容（AI-INSERT 区域、已知陷阱、用户约束、手写章节），只新增/更新模板结构变化
 3. 新增旧版本没有的文件（如 v3.7 新增的 `quality-baseline.md`；`sop.config.json` 会询问是否启用代码熵检查）
 4. 若新增了 `quality-baseline.md`，实跑命令采一次质量基线填入（跑不出填「未采集」）
@@ -123,7 +123,36 @@ git pull                    # 更新 kit 到最新版
 
 **升级后的提交由你决定**：确认变更报告无误后，在**项目仓库**里自行提交一次 commit（如 `chore: 更新 SOP 至 vX.Y`）。这个 commit 就是回退点——kit 不代你提交，也不做自动 git 备份。
 
-每个生成的项目 `AGENTS.md` 顶部都有 `<!-- SOP-VERSION: x.y -->`，这是「更新 SOP」判断是否需要升级的依据。
+每个生成的项目 `AGENTS.md` 顶部都有 `<!-- SOP-VERSION: x.y -->` 与 `<!-- SOP-KIT-COMMIT: <sha> -->`，这是判断「是否需要升级、是否已是最新」的依据。
+
+### 未安装 Skill 也能升级 ★
+
+第二步**不依赖第一步**。只要 kit 仓库可达，AI 能自行取得模板与官方脚本完成升级——所以同事的机器、CI 环境、或只 clone 了项目代码的情况都能用：
+
+```bash
+git clone --depth 1 https://github.com/caidix/fe-sop-kit.git <临时目录>
+```
+
+> 临时目录放在**项目内** `.workbuddy/` 下（不写系统目录，避免权限与沙箱问题）；网络不稳定时最多重试 3 次。
+
+每个已初始化项目的 `ai-context/sop-upgrade.md` 里已经写明了完整流程（版本检测 → 取 kit 模板与脚本 → 增量合并 → 网络不可达时降级），**AI 只需读这一个文件**。该文件由 kit 模板生成，随项目入库。
+
+> ⚠️ **模板与官方脚本必须取自 kit 仓库，禁止手写替代实现**——手写版曾让 ignore 规则与扩展名表全部失效，检查静默失效却看起来「有门禁」。
+
+### 版本检测：为什么比对 commit 而不是版本号
+
+同一版本号内发生模板修补很常见，只比版本号会漏检——那正是「项目脚本停留在旧版、文档宣称的检查能力与实际脱节」的来源。
+
+`sop-check` 已内置该检测，每次运行都会打印 kit 远端状态：
+
+```
+kit 远端：远端 3a239cc｜本地 3a239cc｜已是最新
+kit 远端：远端 a1b2c3d｜本地 3a239cc｜有更新      ← 会同时产生一条 WARN
+```
+
+- 检测走 `git ls-remote`（一次请求，不 clone），8 秒超时、失败自动重试一次
+- **网络不可达 / 无 git → 静默降级**，显示「远端未检测到」，绝不阻断检查（离线 CI 也能跑）
+- 不想联网检测：`sop.config.json` 里设 `"kit": { "checkRemote": false }`
 
 ---
 
@@ -143,7 +172,7 @@ node scripts/sop-check.mjs --json     # 机器可读输出
 | 级别 | 检查项 |
 |------|--------|
 | **FAIL** | AGENTS.md / SOP-VERSION 标记缺失、必要 rules 缺失、仍有未填占位符 `{{...}}` |
-| **WARN** | 版本漂移（含脚本版本落后提示）、TODO/TBD/待定残留（排除否定语境与代码块）、rules 文件 > 400 行、跨文件重复段落、frontend.md 缺 NFR 节、specs 四件套不齐备（`状态：草稿` 豁免，`specs/archive/` 跳过）、spec 状态缺失或不在枚举、已交付 > 90 天未归档、草稿停滞 > 30 天、活跃 spec > 8 个、缺质量基线快照（在 AGENTS.md「裁剪」区块显式声明不生成可豁免）、缺 `design-tokens.md`（可声明豁免）、未接入任何机器强制层（可声明豁免） |
+| **WARN** | 版本漂移（含脚本版本落后提示）、**kit 远端有新版本（比对 commit，非版本号）**、TODO/TBD/待定残留（排除否定语境与代码块）、rules 文件 > 400 行、跨文件重复段落、frontend.md 缺 NFR 节、specs 四件套不齐备（`状态：草稿` 豁免，`specs/archive/` 跳过）、spec 状态缺失或不在枚举、已交付 > 90 天未归档、草稿停滞 > 30 天、活跃 spec > 8 个、缺质量基线快照（在 AGENTS.md「裁剪」区块显式声明不生成可豁免）、缺 `design-tokens.md`（可声明豁免）、未接入任何机器强制层（可声明豁免） |
 | **WARN（预算）** | 规则体量超预算——AGENTS.md > 4,500 字符、单文件 > 10,000、`rules/` 合计 > 40,000（`sop.config.json` 的 `budgets` 可调；`false` 只关体量预算，>400 行检查仍执行）；每次运行都打印实际体量 |
 | **WARN（可选）** | 代码熵扫描——**仅当 `sop.config.json` 里出现代码扫描字段（`srcDirs` / `checks` / `maxFileLines` 等，或显式 `"codeEntropy": true`）才启用**；只写 `budgets` 调预算不会触发扫描。检查超长源码 / console 残留 / any 类型 / 危险 API / 代码 TODO，各项可配阈值与忽略规则；**启用但未匹配到源文件会告警**（避免 srcDirs 写错时空跑）；无配置文件则完全静默 |
 | **WARN（可选·色值）** | 硬编码颜色——代码层匹配 Tailwind 任意值（`-[#hex]` / `-[rgb()]`），样式层匹配原生 CSS 声明（`color: #fff;`）里的裸 hex/rgb/hsl。**样式层由 `styleExtensions` 控制**（默认 `.less/.css/.scss/.sass/.styl`），CSS 变量定义行与 `var(--token)` 引用不计入；token 真源文件须在 `colorAllowPatterns` 登记豁免 |
@@ -170,6 +199,7 @@ node scripts/sop-check.mjs --json     # 机器可读输出
 │   ├── prd.md                         # 产品定位 + 模块清单
 │   ├── design.md                      # 架构设计 + 特有机制详解
 │   ├── design-tokens.md               # 设计 token 清单 + **硬编码值三分类判定** ★（前端项目）
+│   ├── sop-upgrade.md                 # **SOP 升级唯一流程** ★（版本检测 / 取 kit 模板与脚本 / 增量合并 / 降级）
 │   ├── quality-baseline.md            # 质量基线快照（体积/覆盖率/tsc/lint + 回归红线）★
 │   ├── configs/                       # 【可选】机器强制层配置模板 ★
 │   │   ├── README.md                  # 三件套分工 + 接入顺序（先定表 → 再翻译 → 先 warn → 转 error）
@@ -255,7 +285,7 @@ flowchart TB
     subgraph UP["③ 升级层 · 模板迭代（按需同步）"]
         direction TB
         U1["第一步 · kit 侧：git pull 更新 SOP 版本<br/>重跑 install.sh 升级 Skill（所有项目通用）"]
-        U1 --> U2["第二步 · 项目侧：对 AI 说「更新 SOP」<br/>对比 SOP-VERSION + 增量合并"]
+        U1 --> U2["第二步 · 项目侧：对 AI 说「更新 SOP」<br/>比对远端 commit + 增量合并<br/>（未装 Skill 时 clone 自举）"]
         U2 --> U3["保留 AI-INSERT / 手写内容<br/>新增 quality-baseline.md 等结构<br/>整体覆盖 sop-check.mjs"]
         U3 --> U4["跑 sop-check 确认健康<br/>→ 用户在项目里自行 commit"]
     end
@@ -330,7 +360,8 @@ flowchart TB
 <details>
 <summary>版本历史（CHANGELOG）</summary>
 
-- **v4.1（当前）**：**修「门禁本身失效」的两类根因**（源自 ticket-auction 项目实测）——① **官方脚本随 Skill 分发（P0）**：`scripts/sop-check.mjs` 原先只在 kit 仓库根的 `scripts/` 下，而 `install.sh` 只复制 `skills/` 目录，导致**装到别人主机上的 Skill 里没有官方脚本**。AI 执行「初始化 SOP」时找不到它，于是自己手写了一份 151 行简化实现（文件头甚至写着「本 kit 未提供官方脚本」）——那份手写版的 ignore 规则用 `p.replace(/\*\*\//g,'') + rel.includes()`，**永远匹配不到真实路径**（`src/utils/bid.test.ts` 匹配 `*.test.*` 恒为 false），扩展名表也只有 ts/tsx/js/jsx，**样式文件完全不扫描**。两处检查全部静默失效，却看起来「有门禁」。修法：脚本 `git mv` 到 `skills/sop-init-frontend/scripts/`（Skill 自带，随安装分发到 `~/.workbuddy` 与 `~/.codebuddy`），SKILL.md 生成清单与升级流程改指该路径并**明令禁止手写替代实现**，`kit-self-check` 新增三项防回归校验（脚本必须在 Skill 目录 / SKILL.md 必须指向它 / install.sh 必须整目录复制）；② **新增样式层色值扫描**：`sop-check` 原来只匹配 Tailwind 任意值形态（`-[#hex]`），样式文件里的原生声明（`color: #fff;`）完全扫不到——而这恰恰是很多项目的色值漂移主战场（实测某项目样式层 35 处裸色值、代码层 0 处）。新增 `styleExtensions` 配置（默认 `.less/.css/.scss/.sass/.styl`）与独立的「样式层」告警桶，排除 CSS 变量定义行与 `var(--token)` 引用，token 真源文件走 `colorAllowPatterns` 豁免；③ 顺带修正 `SKILL.md` 阶段 0 的硬编码色值探测——明确要求样式文件单独统计。
+- **v4.2（当前）**：**让「更新 SOP」不再依赖本机装了 Skill**——升级流程原先只写在 `skills/sop-init-frontend/SKILL.md` 里，而那份文件**只存在于 Skill 安装目录**。没装 Skill 的用户（同事的机器、CI 环境、只 clone 了项目代码）手里根本没有升级流程，AI 无从知道去哪里取官方模板与脚本，转头就会自行手写替代实现——**这正是 v4.1 事故的同一个根因在升级链路上的复现**。修法四条：① **项目内自带升级流程**——新增模板 `ai-context/sop-upgrade.md`（随项目入库），内含「版本检测 → 取 kit 模板与官方脚本 → 增量合并 → 网络不可达时降级」完整流程，并**明令禁止手写替代实现**；AGENTS.md 顶部新增「十一、SOP 升级（AI 必读）」指路，AI 读到就知道该读哪；② **未装 Skill 时的自举路径**——`git clone --depth 1 <repo> <项目内临时目录>`（临时目录放项目内 `.workbuddy/`，不写系统目录；网络不稳定最多重试 3 次），从 `<临时目录>/skills/sop-init-frontend/` 取 `templates/` 与 `scripts/`；③ **版本检测从版本号升级为 commit 级**——新增 `AGENTS.md` 的 `SOP-KIT-REPO` / `SOP-KIT-COMMIT` 标记与 `sop.config.json` 的 `kit` 字段（repo / branch / version / commit / checkRemote），`sop-check` 用 `git ls-remote --heads` 取远端分支 sha 与本地记录的 commit 比对，有更新即告警。只比版本号会漏检「版本号未变但模板已改」——那正是「项目脚本停留在旧版、文档宣称能力与实际脱节」的来源。检测 8 秒超时、失败重试一次、**网络不可达则静默降级绝不阻断**（离线 CI 也能跑），可用 `"kit": { "checkRemote": false }` 关闭；④ **溯源信息自动写入**——`install.sh` 安装 Skill 时写 `kit-source.json`（version / commit / repo / installedAt），初始化时据此填入 AGENTS.md 的 `{{KIT_COMMIT}}`，杜绝编造 sha；`kit-self-check` 新增 8 项防回归断言（升级流程模板存在且含 clone 与禁手写、AGENTS.md 模板含两个溯源标记、config 模板含 kit 字段、sop-check 实现 ls-remote 且读标记、install.sh 写 kit-source.json）。
+- **v4.1**：**修「门禁本身失效」的两类根因**（源自 ticket-auction 项目实测）——① **官方脚本随 Skill 分发（P0）**：`scripts/sop-check.mjs` 原先只在 kit 仓库根的 `scripts/` 下，而 `install.sh` 只复制 `skills/` 目录，导致**装到别人主机上的 Skill 里没有官方脚本**。AI 执行「初始化 SOP」时找不到它，于是自己手写了一份 151 行简化实现（文件头甚至写着「本 kit 未提供官方脚本」）——那份手写版的 ignore 规则用 `p.replace(/\*\*\//g,'') + rel.includes()`，**永远匹配不到真实路径**（`src/utils/bid.test.ts` 匹配 `*.test.*` 恒为 false），扩展名表也只有 ts/tsx/js/jsx，**样式文件完全不扫描**。两处检查全部静默失效，却看起来「有门禁」。修法：脚本 `git mv` 到 `skills/sop-init-frontend/scripts/`（Skill 自带，随安装分发到 `~/.workbuddy` 与 `~/.codebuddy`），SKILL.md 生成清单与升级流程改指该路径并**明令禁止手写替代实现**，`kit-self-check` 新增三项防回归校验（脚本必须在 Skill 目录 / SKILL.md 必须指向它 / install.sh 必须整目录复制）；② **新增样式层色值扫描**：`sop-check` 原来只匹配 Tailwind 任意值形态（`-[#hex]`），样式文件里的原生声明（`color: #fff;`）完全扫不到——而这恰恰是很多项目的色值漂移主战场（实测某项目样式层 35 处裸色值、代码层 0 处）。新增 `styleExtensions` 配置（默认 `.less/.css/.scss/.sass/.styl`）与独立的「样式层」告警桶，排除 CSS 变量定义行与 `var(--token)` 引用，token 真源文件走 `colorAllowPatterns` 豁免；③ 顺带修正 `SKILL.md` 阶段 0 的硬编码色值探测——明确要求样式文件单独统计。
 - **v4.0**：**从「写更多文档」转向「补机器强制层」**（源自 air-chat 深度使用暴露的通用缺口）——① **新增 `ai-context/design-tokens.md` 模板**：记录 token 真源、**语义命名体系**（用途优先于外观）、**当前 token 清单**、**工具类映射覆盖度**，以及**硬编码值三分类判定**——颜色字面量该禁 / token 引用合规 / 几何与变体合法。判定依据是「这个值表达什么」而非「它出现在哪种语法里」：Tailwind 官方把任意值定位为 escape hatch，逃生舱本身合法，要约束的是「重复出现」而非「用了方括号」；一刀切禁任意值会把代码逼向 inline style，UI 一致性反而更差。同一色值出现 ≥2 次即「该建 token」信号；② **新增 `ai-context/configs/` 机器强制层模板**（eslint 边界 / dependency-cruiser / stylelint），附接入顺序：先定归属表 → 再翻译成规则 → **先 warn 跑存量基线** → 最后转 error（直接开 error 会让项目立刻红掉，团队通常直接把规则关掉）；③ **`sop-check` 新增三项**：硬编码颜色字面量扫描（只命中 `-[#hex]` / `-[rgb()]` 形态，按色值聚合；**刻意不用** `eslint-plugin-tailwindcss` 的 `no-arbitrary-value`——它会误杀 token 引用与几何变体）、缺 `design-tokens.md` 告警、未接入任何强制层告警；④ **`project-map.md` 新增归属决策表 + 允许导入关系（越界表）+ 项目地雷**，并确立收录标准：**只写 agent 无法从代码直接读出的信息**（读一遍代码就知道的东西每次会话都要付费且稀释真正重要的约定）；⑤ **`frontend.md` 新增硬编码值判定 + 工具类映射要求**，`review.md` 新增「设计一致性」「落位正确性」两组检查项；⑥ `SKILL.md` 阶段 0 新增 token 层/硬编码现状/层级结构/现有强制层四项探测，阶段 1 新增两问（设计 token 体系、机器强制层），阶段 2 新增生成要求，升级流程明确 v4.0 新文件处理；⑦ `kit-self-check` 新增 v4.0 关键模板防误删校验。
 - **v3.9**：**specs 生命周期（防止「永不清理」退化成垃圾场）**——① `specs/README` 模板确立三态（活跃 / 归档 / 废弃）与阈值：已交付满 90 天、草稿停滞 30 天、活跃目录 > 8 个即触发归档；② 归档落到 `specs/archive/`，检查器跳过该目录的四件套与占位符检查（冻结区不再当活跃 spec 管）；③ 新增 `specs/INDEX.md` 模板 + `proposal.md` 增加「交付结论」字段，归档时一句话登记，解决「查当初为什么这么做」；④ `sop-check` 新增五类 WARN：状态行缺失、状态值不在枚举、已交付超期未归档、草稿停滞、活跃超编（时间用文件 mtime 近似，新克隆不误报）；⑤ 归档前若代码注释引用了 spec 路径，README 约定先改为 `specs/archive/...` 或提交号。
 - **v3.8**：**上下文成本控制（token 预算）**——① `AGENTS.md` 模板重构：把「进入项目后依次读取 11 个文件」改为「**三步判级法**（数改动面 → 查高风险面 → 兜底默认 L2）+ 加载表（必读 / 按需 / 跳过）+ 读取纪律（先 grep 章节再按片段读、不重读、项目文档默认不读）+ 文件索引表」，并在首条回复自报「判级 + 已读文件」，一次样式改动从「全量 rules（约 2.3 万字符）」降到「样式规范 + review 五轴 + 必过关卡 + 铁律 4（约 3.4K 字符）」；② AGENTS.md 瘦身（模板 3,774 字符，含三步判级法，外部 Skill 安装建议归并到 `skill-routing.md`，分级细则归位 `workflow.md`，删除与 rules 重复的说明）；③ 各 rules 模板加一行「职责 + 按节读」提示（不展开静态目录——目录用 `grep "^## "` 动态获取，避免漂移）；④ `sop-check` 新增**规则体量预算**（AGENTS.md 4,500 / 单文件 10,000 / 合计 40,000 字符，可由 `sop.config.json` 的 `budgets` 覆盖；`false` 只关体量预算，>400 行检查仍执行），每次运行打印实际体量，`--json` 输出 `metrics` 便于 CI 追踪；⑤ 修复 `workflow.md` 中 `demo/` 硬编码残留（改为条件化表述）；⑥ 判级可执行化（二次评审）：**L0-L3 是自定标签、工具不认识**，原「信号」列是模糊描述（多文件/正常功能），改为**三步判级法**——数改动面（≤1/1-2/3-5/>5 文件）→ 查高风险面（鉴权/支付/请求拦截器/构建配置/接口协议等命中即 L3，新增一条路由不算）→ 兜底默认 L2，并要求首条回复自报「判级 + 已读文件」以便核查；⑦ 二次评审修复：**质量基线豁免被文件索引行误触发**（改为只认「裁剪」区块的显式声明）、**代码熵启用但零匹配源文件时静默全绿**（现改为告警）、分级矩阵把 `review.md` / `testing.md` / `skill-routing.md` 降级为「按需」与各自的强制条款冲突（改为**必读、只读命中节**，不动质量红线），并把 `workflow.md` 铁律 4 的任务分类限定到 L2/L3；`kit-self-check` 的 install.sh 版本校验覆盖安装横幅、新增「生成集合计不得超预算」校验；代码熵改为「配置含代码扫描字段（或 `codeEntropy:true`）才启用」，避免只为调 `budgets` 的项目被意外开启扫描。

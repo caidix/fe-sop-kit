@@ -1,0 +1,85 @@
+# SOP 升级指引
+
+> 本文件是「更新 SOP」的唯一流程依据，**AI 必读**。
+> 升级动作依赖 kit 仓库的模板与官方脚本——缺任一项就会退化成「手写替代实现」，那比不升级更糟（曾出现手写版检查脚本的 ignore 规则完全失效、样式层完全不扫描，却看起来「有门禁」）。
+
+## 0. 本项目当前基线
+
+| 项 | 值 |
+|---|---|
+| kit 仓库 | `{{KIT_REPO}}` |
+| 分支 | `{{KIT_BRANCH}}` |
+| kit 版本 | `{{KIT_VERSION}}` |
+| 基于 commit | `{{KIT_COMMIT}}` |
+
+## 1. 版本检测（先做这一步）
+
+```bash
+git ls-remote --heads {{KIT_REPO}} {{KIT_BRANCH}}
+```
+
+- 返回的 sha **等于** `{{KIT_COMMIT}}` → 已是最新，告知用户后结束。
+- sha **不等于** `{{KIT_COMMIT}}` → 远端有更新，继续第 2 步。
+- 命令失败（无网络 / 无 git / 代理阻断）→ **不要中断升级**，按「当前已安装版本」继续，并在最终报告注明「未能检测远端版本」。
+
+> 为什么比对 commit 而不是版本号：同一版本号内发生模板修补的情况很常见，只比版本号会漏检——这正是「项目脚本停留在旧版、文档宣称的检查能力与实际脱节」那类问题的来源。
+
+## 2. 取官方模板与脚本（必须来自 kit 仓库）
+
+**路径 A —— 本机已安装 Skill**：从 Skill 目录取 `templates/` 与 `scripts/sop-check.mjs`
+- WorkBuddy：`~/.workbuddy/skills/sop-init-frontend/`
+- CodeBuddy：`~/.codebuddy/skills/sop-init-frontend/`
+
+**路径 B —— 未安装 Skill（自举）**：clone kit 到临时目录后从其中取
+
+```bash
+git clone --depth 1 --branch {{KIT_BRANCH}} {{KIT_REPO}} <临时目录>
+```
+
+- 临时目录放在**项目内** `.workbuddy/` 下（不写系统目录，避免权限与沙箱问题）。
+- 网络不稳定时**最多重试 3 次**再判定失败。
+- 取用路径：`<临时目录>/skills/sop-init-frontend/templates/` 与 `<临时目录>/skills/sop-init-frontend/scripts/sop-check.mjs`。
+
+> ⚠️ **禁止手写替代实现**。`scripts/sop-check.mjs` 必须从上述来源**整体复制**。曾有项目因找不到官方脚本而手写 151 行简化版：ignore 规则用 `p.replace(/\*\*\//g,'') + rel.includes()`，永远匹配不到真实路径；扩展名表只有 ts/tsx/js/jsx，样式文件完全不扫描。两处检查全部静默失效，却看起来「有门禁」。
+
+## 3. 增量合并（不丢项目内容）
+
+| 内容 | 处理 |
+|---|---|
+| `<!-- AI-INSERT: xxx -->` 区域内已填充的项目内容 | **保留**，重新映射到新模板对应位置 |
+| 各 rules 的「已知陷阱」「用户声明的额外约束」章节 | **保留**，追加到新模板对应章节末尾 |
+| `project-map.md` / `design.md` / `prd.md` 中扫描生成的项目事实 | **保留** |
+| 用户手写的章节 / 注释 | **保留** |
+| 模板新增的文件与章节 | **新增**并填充 |
+| `scripts/sop-check.mjs` 等脚本类文件 | **一律整体覆盖**（脚本无项目特定内容） |
+
+## 4. 更新标记
+
+改写 `AGENTS.md` 顶部三处：
+
+- `<!-- SOP-VERSION: X.Y -->` → 新版本号
+- `<!-- SOP-KIT-COMMIT: <sha> -->` → 第 1 步查到的远端 sha
+- `<!-- SOP-KIT-REPO: ... -->` → 仓库地址未变则原样保留
+
+同时更新 `sop.config.json` 的 `kit.version` 与 `kit.commit`。
+
+## 5. 收尾
+
+```bash
+node scripts/sop-check.mjs
+```
+
+跑一次确认健康（有 WARN 就说明原因或修复），输出变更报告，并提示用户在项目仓库自行提交：
+
+```
+chore: 更新 SOP 至 vX.Y
+```
+
+用户自己的这个 commit 就是唯一回退点，可用 `git revert` 整体回退。
+
+## 6. 网络不可达时的降级
+
+`git ls-remote` 与 `git clone` 都失败时：
+
+- **保留现有文件不动**，明确报告「无法获取最新 kit（网络不可达），请联网后重试或手动 clone 后再执行」。
+- **不得**改用手写模板或手写脚本顶替——静默降级比明确失败更危险。
