@@ -3,7 +3,7 @@ name: sop-init-frontend
 description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意前端项目后调用，自动扫描项目结构并生成 AGENTS.md + ai-context/ + rules/ + specs/ + quality-baseline（demo/ 可选）。适配 React/Vue/Taro/Next.js 等主流前端框架。
 ---
 
-<!-- SOP-VERSION: 4.0 -->
+<!-- SOP-VERSION: 4.1 -->
 
 # sop-init-frontend — 前端项目 AI 协作脚手架初始化（可插拔）
 
@@ -29,7 +29,7 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 | 状态管理 | `package.json` 搜索 redux/pinia/zustand/mobx/recoil/jotai；记录库名 + 版本 |
 | 样式方案 | 搜索 scss/less/tailwind/styled-components/css-modules |
 | **设计 Token 层** ★ | 搜索 CSS 变量（`--color-` / `--spacing-` / `--text-`）、`tailwind.config.*` 的 `theme.extend`、`@theme`（v4）、`theme.ts`/`tokens.ts`；记录：token 定义在哪个文件、是否已映射为工具类（Tailwind theme / CSS 变量）、深色模式如何切换。**无 token 层也要记录**（后续要建） |
-| **硬编码色值现状** ★ | 在源码中统计 `-[#hex]` / `-[rgb()]` 形态的出现与重复情况（同一色值 ≥2 次 = 该建 token 的信号）。有 CSS 时另查裸 hex |
+| **硬编码色值现状** ★ | 在源码中统计 `-[#hex]` / `-[rgb()]` 形态的出现与重复情况（同一色值 ≥2 次 = 该建 token 的信号）。**样式文件必须单独统计**：`.less`/`.css`/`.scss` 里的裸 `color: #fff;` 形态与 Tailwind 任意值不同，是最常见的色值漂移来源（实测某项目样式层 35 处、代码层 0 处）。同时确认 token 真源文件在哪（应整体豁免） |
 | **层级结构** ★ | 扫描顶层目录（pages/components/hooks/services/utils/types/store 等），推断出「展示层 / 业务层 / 数据层 / 共享层」，据此填 project-map 的归属决策表与允许导入关系 |
 | **现有强制层** ★ | 检查是否已有 ESLint 边界规则（`no-restricted-imports`）、dependency-cruiser 配置、stylelint 硬色值规则；记录存在性（决定新配置是「补充」还是「新建」） |
 | UI 组件库 | 搜索 antd/element-plus/naive-ui/taro-ui/radix-ui/shadcn；记录库名 + 版本 |
@@ -144,8 +144,14 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 ├── demo/                              # 【可选】仅当用户在阶段 1 确认需要示例库时生成
 │   └── README.md                      # 从 templates/demo/README.md.template
 └── scripts/
-    └── sop-check.mjs                  # 从本 kit scripts/sop-check.mjs **整体覆盖复制**（SOP 健康检查 / CI 硬门禁）★
+    └── sop-check.mjs                  # 从本 Skill 目录的 scripts/sop-check.mjs **整体覆盖复制**（SOP 健康检查 / CI 硬门禁）★
 ```
+
+> ⚠️ **禁止手写替代实现**：`scripts/sop-check.mjs` 必须从本 Skill 目录（`skills/sop-init-frontend/scripts/sop-check.mjs`）整体复制。
+> 绝不允许自己写一份「简化版检查脚本」——曾有项目因为找不到官方脚本而手写 151 行替代品，
+> 结果 ignore 规则（`p.replace(/\*\*\//g,'') + rel.includes`）永远匹配不到真实路径、
+> 扩展名表漏掉样式文件，**两处检查全部静默失效**却看起来「有门禁」。
+> 若本 Skill 目录下找不到该文件，说明安装不完整——应提示用户重跑 `scripts/install.sh`，而不是自己写一个。
 
 ### 生成要求
 - **AGENTS.md**：**保持精简**——生成后目标 < 4,500 字符（`sop-check` 按此预算告警）。只放分级加载矩阵、读取纪律、文件索引、铁律与裁剪声明，细节一律放 rules。**§一 的「三步判级法」（数改动面 → 查高风险面 → 兜底）必须完整保留**——阈值可按项目调（如把 5 文件改成 3 文件），但不能删步骤或退回「只看信号描述」，否则 agent 无法稳定判级。填充「本项目对 SOP 的裁剪」→ `{{SOP_CUSTOMIZATIONS}}`（默认「暂无」；用户在阶段 1 第 13 问选择不生成 demo/ 时，写明「不生成 demo/（实践沉淀走 rules 已知陷阱）」；有其他裁剪逐条列出）。**文件索引表只保留本项目实际生成的框架文件**（React 项目删掉 vue/generic 行，反之同理）。
@@ -153,7 +159,7 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 - **design-tokens.md**（前端项目，阶段 1 第 15 问）：**填充「Token 真源位置」** `{{TOKEN_SOURCE}}`（文件路径 + 深色模式切换方式）；**填充「当前 Token 清单」** `{{TOKEN_ROWS}}`（**只列真实存在的 token，不编造**；无 token 层则填「待建立」并提示用户）；**填充「工具类映射覆盖度」** `{{MAPPING_ROWS}}`；**填充「硬编码值三分类」**的 A 类形态清单与 `{{LITERAL_ROWS}}` 提升信号表；**填充「已知例外」** `{{TOKEN_EXCEPTIONS}}`（每条写明「为什么必须例外」——没有原因的例外会被后续当漏洞删掉）。命名体系一节按项目实际 token 族填写，**优先语义命名**（`action-primary` 用途 > `blue-500` 外观）。
 - **design.md**：若扫描到特殊机制（插件注入、全局单例、微前端等），必须用独立章节详解。
 - **quality-baseline.md**：按阶段 0 扫描到的命令填充 `{{TYPECHECK_COMMAND}}` / `{{BUILD_COMMAND}}` / `{{TEST_COVERAGE_COMMAND}}` / `{{LINT_COMMAND}}`；**实际跑一次**把数值填入基线表（不要编造，跑不出填「未采集」并注明原因）；`{{REGRESSION_GUARD_1/2}}` 定义「较基线劣化多少即拦截」，至少给一条具体阈值（无则填「暂不设红线」）。
-- **sop.config.json**（若阶段 1 第 14 问选择生成）：按项目实情填 `srcDirs` / `codeExtensions`（默认 `src` + 主流前端扩展名，后端项目改相应源码目录与扩展名）；其余阈值取模板默认。若用户选择不生成，跳过此文件。
+- **sop.config.json**（若阶段 1 第 14 问选择生成）：按项目实情填 `srcDirs` / `codeExtensions`（默认 `src` + 主流前端扩展名，后端项目改相应源码目录与扩展名）；**必须填 `styleExtensions`**（样式文件扩展名，默认 `.less/.css/.scss/.sass/.styl`）——否则样式层的硬编码色值检查完全扫不到（代码熵检查对样式文件不适用，但色值检查适用）。`colorAllowPatterns` 必须登记 **token 真源文件**（如 `src/styles/tokens.css`），否则真源里的定义会被误报。其余阈值取模板默认。若用户选择不生成，跳过此文件。
 - **rules/*.md（通用）**：保留顶部「职责 + 按节读」提示块（≤2 行，**不要展开成静态目录**——目录用 `grep -n "^## "` 动态获取，静态目录会漂移且白占字符）；**删除与本项目无关的章节**（另一框架的适配说明、未安装 Skill 的详细用法），使 `ai-context/rules/` 合计 < 40,000 字符、单文件 < 10,000 字符——`sop-check` 会按此预算告警。注意 React 项目按模板生成后约 34,000 字符（`skill-routing.md` 9,600 最大），留给「已知陷阱」的余量约 6,000 字符，所以**删无关章节要真删**，不能只留标题。裁剪决定写入 AGENTS.md「本项目对 SOP 的裁剪」，升级时保留。
 - **rules/frontend.md**：从真实代码提取风格（导出方式、命名规范、hooks 模式，标注风格来源）。**填充「非功能需求 (NFR)」节** → `{{PERF_BUDGET}}` / `{{SECURITY_BASELINE}}` / `{{ACCESSIBILITY_RULES}}` / `{{COMPAT_MATRIX}}` / `{{I18N_RULES}}`（从构建配置/用户口述提取；未设预算填「未设预算」，不留空）。**填充「设计决策卡」四问** → `{{STATE_PLACEMENT}}` / `{{COMPONENT_SPLIT}}` / `{{EFFECT_BOUNDARY}}` / `{{RACE_HANDLING}}`（从真实代码提取约定；项目尚无先例的按推荐默认填并标注「建议」，落地后回填为项目约定）。
 - **rules/skill-routing.md**：根据扫描到的 UI Skill 可用性，填充降级策略中的安装状态标记。
@@ -329,7 +335,7 @@ AI 在对应阶段的行为：
 | `specs/README.md` 的生命周期章节（v3.9：活跃 / 归档 / 废弃 + 阈值） | **用新版覆盖该章节**（无项目特定内容）；若项目已有自己的归档约定，保留项目版并在 AGENTS.md「裁剪」声明 |
 | `specs/` 下已有大量历史 spec | **不做自动归档**（会改动 git 历史）；只提示用户：「有 N 个已交付 spec 可归档，要现在处理吗？」得到确认后按 README 的规则执行 |
 | `AGENTS.md` 加载章节的结构调整（如 v3.8 把「依次读取全部文件」改为「三步判级法 + 加载表 + 读取纪律 + 文件索引」） | **按新模板重排该区块**，删除旧的「依次读取」清单（新索引表已覆盖）；**「三步判级法」必须保留**（可调阈值，不可删步骤）；铁律、核心认知、裁剪声明、用户手写章节保留 |
-| **脚本类文件**（`scripts/sop-check.mjs` 等，无项目特定内容） | **一律以 kit 最新版整体覆盖**，无论新增还是升级。对比项目脚本头部 `SOP-CHECK-VERSION` 与 kit 版本，落后即覆盖——否则文档宣称的检查能力会与实际脚本脱节 |
+| **脚本类文件**（`scripts/sop-check.mjs` 等，无项目特定内容） | **一律以 kit 最新版整体覆盖**，无论新增还是升级。源文件在本 Skill 目录的 `scripts/` 下（**不是** kit 仓库根的 `scripts/`）。对比项目脚本头部 `SOP-CHECK-VERSION` 与 kit 版本，落后即覆盖——否则文档宣称的检查能力会与实际脚本脱节。**若项目脚本缺少 `SOP-CHECK-VERSION` 头，说明它是手写的简化版，必须整体覆盖**（手写版的 ignore / 扩展名逻辑不可信） |
 | 模板结构调整（如生命周期新增阶段） | **更新** `AGENTS.md` 导航 + `workflow.md` 阶段表 |
 | `rules/frontend.md` 等通用规则模板的措辞修订 | **合并**：以新模板为准，但保留项目特定的 INSERT 内容 |
 
@@ -359,6 +365,8 @@ AI 在对应阶段的行为：
   │          询问用户是否启用；不启用则不生成（代码熵检查自动静默）
   │
   ├─→ 脚本类文件（scripts/sop-check.mjs）以 kit 最新版整体覆盖
+  │     └─ 源文件：本 Skill 目录的 scripts/sop-check.mjs
+  │        若项目现有脚本缺少 SOP-CHECK-VERSION 头 → 它是手写简化版，必须整体覆盖
   │
   ├─→ 更新 AGENTS.md 的 SOP-VERSION 标记 + 导航链接
   │

@@ -13,7 +13,7 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const KIT_VERSION = "4.0";
+const KIT_VERSION = "4.1";
 const kitDir = process.cwd();
 const fails = [];
 const warns = [];
@@ -41,7 +41,9 @@ const versionSources = [
   { file: "scripts/install.sh", re: /echo\s+"[^"]*yh-sop-fe-kit v([\d.]+)/, label: "install.sh 安装横幅" },
   // sop-check.mjs 是项目侧硬门禁脚本，其 SOP-CHECK-VERSION 必须与 kit 版本一致，
   // 否则项目同步脚本时会拿到过期的检查能力（air-chat 曾踩到：脚本停在旧版）。
-  { file: "scripts/sop-check.mjs", re: /SOP-CHECK-VERSION:\s*([\d.]+)/ },
+  // 位置在 Skill 目录下——必须随 Skill 一起分发，否则别人主机上的 AI 找不到官方脚本，
+  // 会自己手写一份简化实现（ticket-auction 踩过：手写版的 ignore 规则与扩展名全是坏的）。
+  { file: "skills/sop-init-frontend/scripts/sop-check.mjs", re: /SOP-CHECK-VERSION:\s*([\d.]+)/ },
 ];
 for (const { file, re, label } of versionSources) {
   const name = label || file;
@@ -92,6 +94,24 @@ if (!existsSync(join(tplRoot, "configs/README.md"))) {
 // v4.0 的两个新能力必须同时出现在 SKILL.md 主流程里，否则新模板永远不会被生成
 if (!/design-tokens/.test(skill)) fail("SKILL.md 未提及 design-tokens——v4.0 的 token 层模板不会被生成");
 if (!/configs\//.test(skill) && !/强制层/.test(skill)) fail("SKILL.md 未提及强制层配置（configs/）——机器门禁不会被接入");
+
+// ── 3c. 官方检查脚本必须随 Skill 分发（P0 防回归）──
+// 真实事故：官方脚本曾只放在 kit 仓库根 scripts/ 下，而 install.sh 只复制 skills/ 目录，
+// 导致装到别人主机上的 Skill 里没有官方脚本。AI 执行「初始化 SOP」时找不到它，
+// 于是自己手写了一份 151 行的简化实现——那份手写的 ignore 规则（p.replace(/\*\*\//g,'') +
+// rel.includes）永远匹配不到真实路径，且扩展名表漏掉样式文件，两处检查全部静默失效。
+// 规则：官方脚本必须在 Skill 目录下，且 SKILL.md 的生成清单必须指向该路径。
+const skillScriptPath = join(kitDir, "skills/sop-init-frontend/scripts/sop-check.mjs");
+if (!existsSync(skillScriptPath)) {
+  fail("官方检查脚本未随 Skill 分发：skills/sop-init-frontend/scripts/sop-check.mjs 不存在——安装到别人主机后 AI 找不到官方脚本，会自行手写简化实现（ignore 与扩展名检查全部失效）。");
+}
+if (!/skills\/sop-init-frontend\/scripts\/sop-check\.mjs/.test(skill)) {
+  fail("SKILL.md 的生成清单未指向 Skill 内的 scripts/sop-check.mjs——AI 初始化项目时会找不到脚本来源而自行手写。");
+}
+// install.sh 必须把 skills/ 整目录复制过去（脚本在 skills/ 下才随 Skill 到达）
+if (!/cp -Rf "\$src"/.test(installSh)) {
+  fail("install.sh 未整目录复制 skills/——Skill 内新增的 scripts/ 不会随安装分发。");
+}
 
 // ── 4. 占位符命名规范（全大写下划线）──
 const placeholderRe = /\{\{([^}]+)\}\}/g;

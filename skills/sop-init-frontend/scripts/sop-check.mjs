@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// SOP-CHECK-VERSION: 4.0
+// SOP-CHECK-VERSION: 4.1
 // ==============================================================================
 // sop-check.mjs — SOP 健康检查（硬门禁 + 熵检测 + 设计体系检测）
 //
@@ -20,8 +20,8 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
-const KIT_VERSION = "4.0"; // 与 kit 当前版本对齐，用于漂移检测
-const SCRIPT_VERSION = "4.0"; // 与头部 SOP-CHECK-VERSION 标记一致
+const KIT_VERSION = "4.1"; // 与 kit 当前版本对齐，用于漂移检测
+const SCRIPT_VERSION = "4.1"; // 与头部 SOP-CHECK-VERSION 标记一致
 const cwd = process.cwd();
 const args = new Set(process.argv.slice(2));
 const STRICT = args.has("--strict");
@@ -389,7 +389,7 @@ metrics.activeSpecs = activeSpecs.length;
 // 这样老项目（如 air-chat）升级脚本后不会被新检查突然刷屏。
 // 注意：budgets 也写在同一个文件里，所以不能「有配置就扫」——否则只想调预算的项目
 // 会被意外开启扫描。只有出现代码扫描相关字段（或显式 codeEntropy:true）才算启用。
-const CODE_CFG_KEYS = ["srcDirs", "codeExtensions", "maxFileLines", "maxWarningsPerCheck", "checks", "ignore"];
+const CODE_CFG_KEYS = ["srcDirs", "codeExtensions", "styleExtensions", "maxFileLines", "maxWarningsPerCheck", "checks", "ignore"];
 const codeEntropyOn = !!projectCfg && typeof projectCfg === "object"
   && (projectCfg.codeEntropy === true || CODE_CFG_KEYS.some((k) => k in projectCfg));
 if (cfgText) {
@@ -399,6 +399,10 @@ if (cfgText) {
   } else if (codeEntropyOn) {
     const srcDirs = Array.isArray(cfg.srcDirs) && cfg.srcDirs.length ? cfg.srcDirs : ["src"];
     const exts = Array.isArray(cfg.codeExtensions) ? cfg.codeExtensions : [".ts", ".tsx", ".js", ".jsx", ".vue"];
+    // 样式文件扩展名单独配置：代码熵检查（console/any/超长行）对样式文件不适用，
+    // 但「硬编码色值」在样式层同样必须管——很多项目的色值漂移全在 less/css 里。
+    const styleExts = Array.isArray(cfg.styleExtensions) ? cfg.styleExtensions
+      : [".less", ".css", ".scss", ".sass", ".styl"];
     const checks = cfg.checks || {};
     const maxLines = Number.isFinite(cfg.maxFileLines) ? cfg.maxFileLines : 300;
     const ignores = (Array.isArray(cfg.ignore) ? cfg.ignore : ["**/*.test.*", "**/dist/**", "**/node_modules/**"])
@@ -406,12 +410,14 @@ if (cfgText) {
     const isIgnored = (rel) => ignores.some((re) => re.test(rel));
 
     const codePaths = [];
+    const stylePaths = [];
     for (const d of srcDirs) {
       const abs = d.startsWith("/") ? d : join(cwd, d);
       for (const p of walk(abs)) {
-        if (!exts.some((e) => p.endsWith(e))) continue;
         const relPath = rel(p);
-        if (!isIgnored(relPath)) codePaths.push({ p, rel: relPath });
+        if (isIgnored(relPath)) continue;
+        if (exts.some((e) => p.endsWith(e))) codePaths.push({ p, rel: relPath });
+        else if (styleExts.some((e) => p.endsWith(e))) stylePaths.push({ p, rel: relPath });
       }
     }
     // 零匹配必须出声：srcDirs / codeExtensions 写错时，检查会「静默全绿」，
@@ -425,7 +431,7 @@ if (cfgText) {
       const shown = hits.slice(0, limit).join("、");
       warn(`[代码熵] ${label}：${shown}${hits.length > limit ? ` 等 ${hits.length} 处` : ""}——${advice}`);
     };
-    const buckets = { long: [], console: [], any: [], dangerous: [], todo: [], color: [] };
+    const buckets = { long: [], console: [], any: [], dangerous: [], todo: [], color: [], styleColor: [] };
     // 危险 API：需人工确认，只在配置开启时命中
     const dangerousRe = /dangerouslySetInnerHTML|\beval\s*\(|new\s+Function\s*\(|innerHTML\s*=/;
     const todoRe = /\b(TODO|FIXME|XXX)\b/;
@@ -438,6 +444,18 @@ if (cfgText) {
     // 色值部分要捕获完整（含尾部 ]），否则聚合出的键是截断的 "-[#fef2f1"，
     // 显示时像 bug，也会让不同色值的前缀看起来可疑。
     const colorLitRe = /-\[(#[0-9a-fA-F]{3,8}|rgba?\([^)\]]*\)|hsla?\([^)\]]*\))\]/g;
+    // 样式文件（less/css/scss）里的色值形态完全不同：不是 Tailwind 任意值，
+    // 而是 `color: #fff;` / `background: rgba(0,0,0,.06);` 这类原生 CSS 声明。
+    // 只看 Tailwind 形态会漏掉整个样式层——而很多项目（尤其用 less/css-modules 的）
+    // 硬编码色值恰恰全在样式文件里（实测某项目 .less 中 30+ 处裸色值，样式层零覆盖）。
+    // CSS 变量定义行（--brand: #d7000f;）是 token 真源的定义，不是违规；
+    // 同时覆盖 Less 的 @brand: 与 SCSS 的 $brand: 变量定义。
+    // 项目可用 colorAllowPatterns 把真源文件整体豁免。
+    const styleColorRe = /(#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)|hsla?\([^)]*\))/g;
+    // 只匹配「变量名 + 冒号」这一形态（用于判定某色值是否位于变量定义右侧）。
+    // 允许前面有选择器等任意前缀（`.b { --my-token:` / `@media x { --t:`），
+    // 因为判定时传入的是「色值之前最后一个冒号左侧」这一片段。
+    const cssVarDefRe = /(--[A-Za-z0-9_-]+|@[A-Za-z0-9_-]+|\$[A-Za-z0-9_-]+):$/;
     // 豁免：项目可在 sop.config.json 的 colorAllowPatterns 里声明例外路径
     // （如富卡片等自有配色模块），与 design-tokens.md 的「已知例外」对应。
     const colorAllow = (Array.isArray(cfg.colorAllowPatterns) ? cfg.colorAllowPatterns : [])
@@ -470,6 +488,35 @@ if (cfgText) {
         }
       });
     }
+    // 样式文件色值扫描（less/css/scss/sass/styl）
+    // 排除两类合法用法：
+    //   1) CSS 变量定义行（--brand: #d7000f;）——那是 token 真源的定义，不是违规
+    //   2) var(--token) 引用——形式合规
+    // 注释行也要排除（/* #fff 是旧色 */ 这类说明文字不该被当成违规）。
+    if (checks.hardcodedColor !== false) {
+      for (const { p, rel: relPath } of stylePaths) {
+        if (isColorAllowed(relPath)) continue;
+        const txt = readText(p);
+        if (!txt) continue;
+        txt.split(/\r?\n/).forEach((line, i) => {
+          const at = `${relPath}:${i + 1}`;
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*")) return;
+          for (const m of line.matchAll(styleColorRe)) {
+            // var(--x) 引用里不含字面量，但保险起见排除形如 url(#id) 的片段引用
+            if (/^#[0-9a-fA-F]{3,8}$/.test(m[0]) && /url\(\s*$/.test(line.slice(0, m.index))) continue;
+            // token 定义排除要按「色值所在位置」判断，而不是整行判断：
+            // 变量定义常与选择器同行（`.b { --my-token: #d7000f; }`），
+            // 整行判断会把同行里真正的硬编码色值一并漏掉。
+            // 规则：取色值之前最后一个冒号，其左侧若是变量名 → 该色值是 token 定义，不算违规。
+            const before = line.slice(0, m.index);
+            const colon = before.lastIndexOf(":");
+            if (colon >= 0 && cssVarDefRe.test(before.slice(0, colon + 1).trim())) continue;
+            buckets.styleColor.push({ at, val: m[0] });
+          }
+        });
+      }
+    }
     report("超长源码文件", buckets.long, `超过 ${maxLines} 行，考虑拆分组件/模块`);
     report("console 残留", buckets.console, "提交前用统一 logger 或移除");
     report("any 类型", buckets.any, "用具体类型或 unknown + 收窄替代");
@@ -488,6 +535,21 @@ if (cfgText) {
         .map(([val, locs]) => `${val} ×${locs.length}（${locs.slice(0, 2).join(", ")}${locs.length > 2 ? "…" : ""}）`)
         .join("、");
       warn(`[代码熵] 硬编码颜色字面量 ${buckets.color.length} 处：${shown}${ranked.length > limit2 ? ` 等 ${ranked.length} 个色值` : ""}——改用设计 token（见 ai-context/design-tokens.md）；同一色值出现 ≥2 次必须提升为 token。若为已声明的例外模块，在 sop.config.json 的 colorAllowPatterns 里登记。`);
+    }
+    // 样式文件色值扫描：与代码层的 Tailwind 任意值分开统计——两者形态不同、位置不同，
+    // 混在一起会让告警看不出「到底是哪一层在漂移」。
+    if (buckets.styleColor.length) {
+      const byValue = new Map();
+      for (const { at, val } of buckets.styleColor) {
+        if (!byValue.has(val)) byValue.set(val, []);
+        byValue.get(val).push(at);
+      }
+      const limit2 = Number.isFinite(cfg.maxWarningsPerCheck) ? cfg.maxWarningsPerCheck : 5;
+      const ranked = [...byValue.entries()].sort((a, b) => b[1].length - a[1].length);
+      const shown = ranked.slice(0, limit2)
+        .map(([val, locs]) => `${val} ×${locs.length}（${locs.slice(0, 2).join(", ")}${locs.length > 2 ? "…" : ""}）`)
+        .join("、");
+      warn(`[样式层] 硬编码颜色 ${buckets.styleColor.length} 处：${shown}${ranked.length > limit2 ? ` 等 ${ranked.length} 个色值` : ""}——样式文件里不要写死颜色，改用 var(--token) 引用 token 真源（见 ai-context/design-tokens.md）。token 真源文件本身（如 tokens.css）请在 sop.config.json 的 colorAllowPatterns 里登记豁免。`);
     }
   }
 }

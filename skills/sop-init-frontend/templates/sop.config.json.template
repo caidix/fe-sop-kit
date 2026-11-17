@@ -1,6 +1,7 @@
 {
   "srcDirs": ["src"],
   "codeExtensions": [".ts", ".tsx", ".js", ".jsx", ".vue"],
+  "styleExtensions": [".less", ".css", ".scss", ".sass", ".styl"],
   "maxFileLines": 300,
   "maxWarningsPerCheck": 5,
   "checks": {
