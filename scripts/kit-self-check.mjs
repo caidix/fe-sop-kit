@@ -13,7 +13,7 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const KIT_VERSION = "4.2";
+const KIT_VERSION = "4.3";
 const kitDir = process.cwd();
 const fails = [];
 const warns = [];
@@ -156,6 +156,15 @@ if (!/ls-remote/.test(sopCheckSrc)) {
 }
 if (!/SOP-KIT-COMMIT/.test(sopCheckSrc)) {
   fail("sop-check.mjs 未读取 SOP-KIT-COMMIT 标记——远端检测无法与项目记录的 commit 对比。");
+}
+// v4.3 修复：commit 可能被声明在两处（AGENTS.md 与 sop.config.json），
+// 初版写成「config 优先」，实测漏报——改了 AGENTS.md 而忘了 config，检测仍显示「已是最新」。
+// 正确做法是两处都收集、逐个比对，任一过期即报「有更新」。
+if (!/kitCommitSources/.test(sopCheckSrc)) {
+  fail("sop-check.mjs 未同时收集 AGENTS.md 与 sop.config.json 两处的 commit 声明——任一处过期都会被漏报（v4.2 实测缺陷）。");
+}
+if (!/kitValidCommits/.test(sopCheckSrc)) {
+  fail("sop-check.mjs 未逐个比对各来源的 commit——远端检测必须「任一处过期即报有更新」，不能只挑一处读。");
 }
 // install.sh 必须写 kit 溯源信息（否则 {{KIT_COMMIT}} 永远填不上真值）
 if (!/kit-source\.json/.test(installSh)) {

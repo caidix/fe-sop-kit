@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// SOP-CHECK-VERSION: 4.2
+// SOP-CHECK-VERSION: 4.3
 // ==============================================================================
 // sop-check.mjs — SOP 健康检查（硬门禁 + 熵检测 + 设计体系检测）
 //
@@ -21,8 +21,8 @@ import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { execFileSync } from "node:child_process";
 
-const KIT_VERSION = "4.2"; // 与 kit 当前版本对齐，用于漂移检测
-const SCRIPT_VERSION = "4.2"; // 与头部 SOP-CHECK-VERSION 标记一致
+const KIT_VERSION = "4.3"; // 与 kit 当前版本对齐，用于漂移检测
+const SCRIPT_VERSION = "4.3"; // 与头部 SOP-CHECK-VERSION 标记一致
 const cwd = process.cwd();
 const args = new Set(process.argv.slice(2));
 const STRICT = args.has("--strict");
@@ -127,11 +127,25 @@ if (!agents) {
 const kitCfg = projectCfg && typeof projectCfg.kit === "object" ? projectCfg.kit : null;
 const kitRepo = (kitCfg && kitCfg.repo) || (agents ? (agents.match(/SOP-KIT-REPO:\s*(\S+)/) || [])[1] : "") || "";
 const kitBranch = (kitCfg && kitCfg.branch) || "master";
-const kitLocalCommitRaw = (kitCfg && kitCfg.commit) || (agents ? (agents.match(/SOP-KIT-COMMIT:\s*(\S+)/) || [])[1] : "") || "";
 const kitLocalVersion = (kitCfg && kitCfg.version) || (agents ? (agents.match(/SOP-VERSION:\s*([\d.]+)/) || [])[1] : "") || "";
 // 只认真正的 sha：手写安装等场景可能写入 "unknown" 之类占位
 const isSha = (s) => /^[0-9a-f]{7,40}$/i.test(String(s || ""));
-const kitLocalCommit = isSha(kitLocalCommitRaw) ? kitLocalCommitRaw.toLowerCase() : "";
+// commit 可能被声明在两处（AGENTS.md 的 SOP-KIT-COMMIT 与 sop.config.json 的 kit.commit）。
+// 两处都是「我基于哪个 kit」的声明——**任一处过期都意味着项目实际停在了旧 kit**，
+// 所以必须全部收集并逐个比对，绝不能只挑一处读。
+// v4.2 初版写成「config 优先」，实测漏报：改了 AGENTS.md 而忘了 config，检测仍显示「已是最新」。
+const kitCommitSources = [];
+if (kitCfg && kitCfg.commit !== undefined && kitCfg.commit !== null && kitCfg.commit !== "") {
+  kitCommitSources.push({ from: "sop.config.json", sha: String(kitCfg.commit) });
+}
+if (agents) {
+  const m = agents.match(/SOP-KIT-COMMIT:\s*(\S+)/);
+  if (m) kitCommitSources.push({ from: "AGENTS.md", sha: m[1] });
+}
+const kitValidCommits = kitCommitSources
+  .filter((c) => isSha(c.sha))
+  .map((c) => ({ from: c.from, sha: c.sha.toLowerCase() }));
+const kitInvalidSources = kitCommitSources.filter((c) => !isSha(c.sha));
 const kitRemoteEnabled = !(kitCfg && kitCfg.checkRemote === false);
 let kitRemoteSha = "";
 let kitRemoteChecked = false;
@@ -151,10 +165,15 @@ if (kitRepo && kitRemoteEnabled) {
   }
 }
 if (kitRemoteChecked && kitRemoteSha) {
-  if (!kitLocalCommit) {
+  const stale = kitValidCommits.filter((c) => c.sha !== kitRemoteSha);
+  if (!kitValidCommits.length) {
     warn(`未记录 kit commit（AGENTS.md 的 SOP-KIT-COMMIT 或 sop.config.json 的 kit.commit）——无法判断是否为最新；执行「更新 SOP」可补齐（流程见 ai-context/sop-upgrade.md）。`);
-  } else if (kitRemoteSha !== kitLocalCommit) {
-    warn(`kit 远端有新版本：项目基于 commit ${kitLocalCommit.slice(0, 7)}（kit v${kitLocalVersion}），远端 ${kitBranch} 最新 ${kitRemoteSha.slice(0, 7)}。建议执行「更新 SOP」——流程见 ai-context/sop-upgrade.md。`);
+  } else if (stale.length) {
+    const detail = stale.map((c) => `${c.from} 记录 ${c.sha.slice(0, 7)}`).join("、");
+    warn(`kit 远端有新版本：${detail}，远端 ${kitBranch} 最新 ${kitRemoteSha.slice(0, 7)}${kitLocalVersion ? `（本项目 kit v${kitLocalVersion}）` : ""}。建议执行「更新 SOP」——流程见 ai-context/sop-upgrade.md。`);
+  }
+  if (kitInvalidSources.length) {
+    warn(`kit commit 记录无效（${kitInvalidSources.map((c) => c.from).join("、")}）——应为 40 位 sha，"unknown" 之类的占位无法用于比对；执行「更新 SOP」可补齐。`);
   }
 }
 
@@ -600,7 +619,7 @@ const ok = errors.length === 0;
 
 const fmtK = (n) => (n >= 1000 ? (n / 1000).toFixed(1) + "K" : String(n));
 if (JSON_OUT) {
-  console.log(JSON.stringify({ ok, kitVersion: KIT_VERSION, scriptVersion: SCRIPT_VERSION, strict: STRICT, metrics, budgets: budgetsOff ? "off" : BUDGETS, kit: { repo: kitRepo, branch: kitBranch, localCommit: kitLocalCommit || null, remoteSha: kitRemoteSha || null, remoteChecked: kitRemoteChecked }, fails, warns }, null, 2));
+  console.log(JSON.stringify({ ok, kitVersion: KIT_VERSION, scriptVersion: SCRIPT_VERSION, strict: STRICT, metrics, budgets: budgetsOff ? "off" : BUDGETS, kit: { repo: kitRepo, branch: kitBranch, localCommits: kitValidCommits.map((c) => ({ from: c.from, commit: c.sha })), remoteSha: kitRemoteSha || null, remoteChecked: kitRemoteChecked }, fails, warns }, null, 2));
 } else {
   const kitState = !kitRepo
     ? "未配置 kit 来源（升级时补 SOP-KIT-REPO）"
@@ -608,11 +627,11 @@ if (JSON_OUT) {
       ? "已关闭远端检测（kit.checkRemote=false）"
       : !kitRemoteChecked
         ? "远端未检测到（网络不可达或无 git）"
-        : !kitLocalCommit
+        : !kitValidCommits.length
           ? `远端 ${kitRemoteSha.slice(0, 7)}｜本地未记录 commit`
-          : kitRemoteSha === kitLocalCommit
+          : kitValidCommits.every((c) => c.sha === kitRemoteSha)
             ? `远端 ${kitRemoteSha.slice(0, 7)}｜已是最新`
-            : `远端 ${kitRemoteSha.slice(0, 7)}｜本地 ${kitLocalCommit.slice(0, 7)}｜有更新`;
+            : `远端 ${kitRemoteSha.slice(0, 7)}｜${kitValidCommits.filter((c) => c.sha !== kitRemoteSha).map((c) => `${c.from} ${c.sha.slice(0, 7)}`).join("、")}｜有更新`;
   console.log("\n🩺 SOP 健康检查");
   console.log(`   项目：${cwd}`);
   console.log(`   kit 版本基准：${KIT_VERSION} ｜ 脚本版本：${SCRIPT_VERSION}${STRICT ? "  (strict)" : ""}`);
