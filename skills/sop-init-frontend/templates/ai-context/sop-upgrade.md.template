@@ -49,6 +49,8 @@ git clone --depth 1 --branch {{KIT_BRANCH}} {{KIT_REPO}} <临时目录>
 | `<!-- AI-INSERT: xxx -->` 区域内已填充的项目内容 | **保留**，重新映射到新模板对应位置 |
 | 各 rules 的「已知陷阱」「用户声明的额外约束」章节 | **保留**，追加到新模板对应章节末尾 |
 | `project-map.md` / `design.md` / `prd.md` 中扫描生成的项目事实 | **保留** |
+| `ai-context/quality-metrics.json`（回归红线采集快照，脚本写入） | **保留**，不覆盖——它是历史趋势数据；`sop.config.json` 的 `regressionGuards` 阈值也保留项目值，不回填模板默认 |
+| `ai-context/release.md`（发布/回滚预案，可选能力分支） | **保留**——发布记录与回滚预案是项目资产；未生成的项目**不自动补**，用户说「建立发布流程」时才生成 |
 | 用户手写的章节 / 注释 | **保留** |
 | 模板新增的文件与章节 | **新增**并填充 |
 | `scripts/sop-check.mjs` 等脚本类文件 | **一律整体覆盖**（脚本无项目特定内容） |

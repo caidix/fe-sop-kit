@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ==============================================================================
-// kit-self-check.mjs — yh-sop-fe-kit 仓库自检（evals · 作者侧）
+// kit-self-check.mjs — fe-sop-kit 仓库自检（evals · 作者侧）
 //
 // 在「kit 仓库根目录」运行。零依赖，仅需 Node。
 //   node scripts/kit-self-check.mjs
@@ -13,7 +13,7 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const KIT_VERSION = "4.4";
+const KIT_VERSION = "4.5";
 const kitDir = process.cwd();
 const fails = [];
 const warns = [];
@@ -37,8 +37,8 @@ const versionSources = [
   { file: "skills/sop-init-frontend/templates/AGENTS.md.template", re: /SOP-VERSION:\s*([\d.]+)/ },
   { file: "skills/sop-init-frontend/SKILL.md", re: /SOP-VERSION:\s*([\d.]+)/ },
   { file: "README.md", re: /SOP-VERSION:\s*([\d.]+)/ },
-  { file: "scripts/install.sh", re: /^#\s*yh-sop-fe-kit 互动式安装脚本\s+v([\d.]+)/m, label: "install.sh 文件头" },
-  { file: "scripts/install.sh", re: /echo\s+"[^"]*yh-sop-fe-kit v([\d.]+)/, label: "install.sh 安装横幅" },
+  { file: "scripts/install.sh", re: /^#\s*fe-sop-kit 互动式安装脚本\s+v([\d.]+)/m, label: "install.sh 文件头" },
+  { file: "scripts/install.sh", re: /echo\s+"[^"]*fe-sop-kit v([\d.]+)/, label: "install.sh 安装横幅" },
   // sop-check.mjs 是项目侧硬门禁脚本，其 SOP-CHECK-VERSION 必须与 kit 版本一致，
   // 否则项目同步脚本时会拿到过期的检查能力（air-chat 曾踩到：脚本停在旧版）。
   // 位置在 Skill 目录下——必须随 Skill 一起分发，否则别人主机上的 AI 找不到官方脚本，
@@ -74,18 +74,21 @@ for (const s of selfSkills) {
   if (!existsSync(join(kitDir, "skills", s))) fail(`install.sh 声明的自有 Skill 目录不存在：skills/${s}`);
 }
 
-// ── 3b. v4.0 关键模板必须存在（防误删）──
-// 这批文件是 v4.0 的核心增量：token 层模板缺失会让「必须用设计 Token」失去可执行性；
-// 强制层配置缺失会让机器门禁无从接入。删掉任何一个都会让 kit 静默降级回 v3.9 行为。
+// ── 3b. 关键模板必须存在（防误删）──
+// v4.0 增量：token 层模板缺失会让「必须用设计 Token」失去可执行性；
+// 强制层配置缺失会让机器门禁无从接入。删掉任何一个都会让 kit 静默降级回旧行为。
+// v4.5 增量：CI 流水线模板缺失会让「验证优于说教」停在文档层，无法进入 CI。
 const REQUIRED_V4_TEMPLATES = [
   "ai-context/design-tokens.md",
   "configs/eslint-boundaries.json",
   "configs/dependency-cruiser.json",
   "configs/stylelint.json",
+  "configs/ci-pipeline.yml",
+  "ai-context/release.md",
 ];
 for (const t of REQUIRED_V4_TEMPLATES) {
   const p = join(tplRoot, t + ".template");
-  if (!existsSync(p)) fail(`v4.0 关键模板缺失：templates/${t}.template（删除会使 kit 静默降级为 v3.9 行为）`);
+  if (!existsSync(p)) fail(`关键模板缺失：templates/${t}.template（删除会使 kit 静默降级回旧行为——token/强制层/CI 门禁失效）`);
 }
 // configs/README.md 是说明文档（不含占位符），不需要 .template 后缀
 if (!existsSync(join(tplRoot, "configs/README.md"))) {
@@ -94,6 +97,10 @@ if (!existsSync(join(tplRoot, "configs/README.md"))) {
 // v4.0 的两个新能力必须同时出现在 SKILL.md 主流程里，否则新模板永远不会被生成
 if (!/design-tokens/.test(skill)) fail("SKILL.md 未提及 design-tokens——v4.0 的 token 层模板不会被生成");
 if (!/configs\//.test(skill) && !/强制层/.test(skill)) fail("SKILL.md 未提及强制层配置（configs/）——机器门禁不会被接入");
+// v4.5：发布/回滚是「可触发分支」——模板缺失会让触发词无落点；SKILL.md 缺触发词
+// 则用户说「建立发布流程」时 AI 不知道该做什么，发布预案能力静默消失。
+if (!/建立发布流程/.test(skill)) fail("SKILL.md 缺少「建立发布流程」触发词——release.md 可选分支将无法被触发。");
+if (!/不接管发布动作/.test(skill)) fail("SKILL.md 未声明「SOP 不接管发布动作」——发布/回滚的边界（归线上流水线承接）会丢失，可能误导项目自建流水线。");
 
 // ── 3c. 官方检查脚本必须随 Skill 分发（P0 防回归）──
 // 真实事故：官方脚本曾只放在 kit 仓库根 scripts/ 下，而 install.sh 只复制 skills/ 目录，
@@ -204,9 +211,65 @@ if (!/kitCommitSources/.test(sopCheckSrc)) {
 if (!/kitValidCommits/.test(sopCheckSrc)) {
   fail("sop-check.mjs 未逐个比对各来源的 commit——远端检测必须「任一处过期即报有更新」，不能只挑一处读。");
 }
+// v4.5：回归红线机器化——红线只有配合「采集 + 比对」才有拦截意义，纯文档红线
+// 会被发版流程遗忘（这正是 quality-baseline.md 占位符长期没人填的根因）。
+// 断言三件事：① sop-check 实现 --metric 采集模式；② sop-check 读取 regressionGuards；
+// ③ sop.config 模板提供完整四指标（bundleSizeKb / coveragePct / tscErrors / lintWarnings）。
+if (!/--metric/.test(sopCheckSrc)) {
+  fail("sop-check.mjs 未实现 --metric 指标采集模式——regressionGuards 将无从比对，质量红线退化为文档建议。");
+}
+if (!/regressionGuards/.test(sopCheckSrc)) {
+  fail("sop-check.mjs 未读取 regressionGuards 配置——红线阈值形同虚设。");
+}
+if (!/malformedGuards|格式错误/.test(sopCheckSrc)) {
+  fail("sop-check.mjs 未检测 regressionGuards 格式错误——错误配置会让红线静默失效（看似有门禁，实则全部放过）。");
+}
+{
+  const cfgTplV45 = readText(join(tplRoot, "sop.config.json.template")) || "";
+  try {
+    const g = JSON.parse(cfgTplV45).regressionGuards || {};
+    for (const k of ["bundleSizeKb", "coveragePct", "tscErrors", "lintWarnings"]) {
+      if (!(k in g)) fail(`sop.config.json.template 的 regressionGuards 缺少 "${k}"——红线指标不完整。`);
+    }
+  } catch {
+    // JSON 解析失败已在 §3d 报过，此处不重复告警
+  }
+}
 // install.sh 必须写 kit 溯源信息（否则 {{KIT_COMMIT}} 永远填不上真值）
 if (!/kit-source\.json/.test(installSh)) {
   fail("install.sh 未写入 kit-source.json——初始化时 {{KIT_COMMIT}} 只能填 unknown，远端检测形同虚设。");
+}
+// v4.5：安装必须「先删后装」。cp -R 是合并复制，新版本删掉的文件会留在用户级
+// Skill 目录里（实测：升级后 OLD-REMOVED-FILE.md 仍在）——AI 可能读到已废弃模板，
+// 比「没升级」更危险。断言清理动作存在，防止回归。
+if (!/rm -rf "\$dst"/.test(installSh)) {
+  fail("install.sh 未在复制前清理目标 Skill 目录（rm -rf \"$dst\"）——cp -R 是合并复制，新版删除的旧文件会残留在 ~/.workbuddy/skills/（版本碎片），AI 可能读到已废弃模板。");
+}
+// v4.5：复合占位符写法 {{A/2}} 会绕过 sop-check 的残留检测（正则只认 {{A-Z0-9_}}），
+// AI 若照抄，残留永远查不出来——静默漏填，故直接判失败。
+const compositePh = [...skill.matchAll(/\{\{[A-Z0-9_]+\/[A-Z0-9_]+\}\}/g)].map((m) => m[0]);
+if (compositePh.length) {
+  fail(`SKILL.md 使用了复合占位符写法 ${compositePh.join("、")}——sop-check 的残留检测正则只认 {{A-Z0-9_}}，含 / 的写法检不出来，会静默漏填；请逐个写全（如 {{A}} 与 {{B}} 分别列出）。`);
+}
+// v4.5：模板占位符若在 SKILL.md 里从无填写指导，AI 就不知道要填什么——
+// 规则性内容（必过关卡、高风险判据、落点决策树）会被填成空话，等于把纪律关掉。
+// 只检查「规则性文件」：内容型占位符（目录表、命令速查、示例代码）由 SKILL.md 的
+// 通用兜底指令覆盖（「未点名的占位符一律按填项目真实代码里读到的事实处理」），
+// 全量检查只会产出几十条噪音，反而淹没真问题。
+{
+  const phRe = /\{\{([A-Z][A-Z0-9_]*)\}\}/g;
+  const RULE_TEMPLATES = ["workflow.md", "review.md", "testing.md", "platform.md", "frontend.md"];
+  const orphan = [];
+  for (const name of RULE_TEMPLATES) {
+    const p = join(tplRoot, "ai-context/rules", name + ".template");
+    const txt = readText(p) || "";
+    for (const m of txt.matchAll(phRe)) {
+      if (!skill.includes(m[1])) orphan.push(`${name}:{{${m[1]}}}`);
+    }
+  }
+  if (orphan.length) {
+    fail(`规则性模板有 ${orphan.length} 个占位符在 SKILL.md 里没有填写指导（AI 会填成空话，等于把纪律关掉）：${orphan.slice(0, 6).join("、")}${orphan.length > 6 ? ` 等 ${orphan.length} 个` : ""}`);
+  }
 }
 
 // ── 4. 占位符命名规范（全大写下划线）──
@@ -282,7 +345,7 @@ for (const [label, files] of Object.entries(generatedSets)) {
 
 // ── 输出 ──
 const ok = fails.length === 0;
-console.log("\n🔬 yh-sop-fe-kit 自检（evals）");
+console.log("\n🔬 fe-sop-kit 自检（evals）");
 console.log(`   kit 版本：${KIT_VERSION}\n`);
 if (fails.length) { console.log("❌ 失败项："); fails.forEach((m) => console.log("   - " + m)); }
 if (warns.length) { console.log("\n⚠️  警告项："); warns.forEach((m) => console.log("   - " + m)); }

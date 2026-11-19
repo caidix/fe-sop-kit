@@ -1,8 +1,8 @@
-<!-- SOP-VERSION: 4.4 -->
+<!-- SOP-VERSION: 4.5 -->
 
 # sop-frontend-kit — 前端项目 AI 协作脚手架（可插拔）
 
-> **SOP 版本：v4.4**
+> **SOP 版本：v4.5**
 
 一套**可复用的前端 AI 协作规范模板包**。放到任意前端项目中调用一次，AI 自动扫描项目结构并生成 `AGENTS.md` + `ai-context/` + `rules/` + `specs/`（+ 可选的 `demo/`）。支持 CodeBuddy / WorkBuddy 双工具。
 
@@ -38,6 +38,7 @@ scripts\install.bat
 | 跳过 | 提示需要时再执行 |
 
 > 非互动模式（CI）：`bash scripts/install.sh --all-react` / `--all-vue` / `--all`。
+> 三个参数都会装到 **WorkBuddy + CodeBuddy 两个工具**（CI 里只装一半几乎总是意外）；只想装单个工具用 `bash scripts/install.sh workbuddy` 或 `codebuddy`（框架仍会询问）。`--help` 查看全部参数。
 >
 > Windows：cmd/PowerShell 直接 `scripts\install.bat`（自动调用 Git Bash）；或 Git Bash 中 `bash scripts/install.sh`。
 
@@ -188,6 +189,9 @@ kit 远端：远端 a1b2c3d｜本地 3a239cc｜有更新      ← 会同时产�
 node scripts/sop-check.mjs            # 检查（WARN 不阻断）
 node scripts/sop-check.mjs --strict   # CI 用：警告也计为失败
 node scripts/sop-check.mjs --json     # 机器可读输出
+node scripts/sop-check.mjs --metric bundleSizeKb=262 [--metric coveragePct=58] [--note "v1.2 发版"]
+                                       # 回归红线比对：与 sop.config.json 的 regressionGuards
+                                       # 阈值比对，超线即失败；快照存 ai-context/quality-metrics.json
 ```
 
 | 级别 | 检查项 |
@@ -196,6 +200,7 @@ node scripts/sop-check.mjs --json     # 机器可读输出
 | **WARN** | 版本漂移（含脚本版本落后提示）、**kit 远端有新版本（比对 commit，非版本号）**、TODO/TBD/待定残留（排除否定语境与代码块）、rules 文件 > 400 行、跨文件重复段落、frontend.md 缺 NFR 节、specs 四件套不齐备（`状态：草稿` 豁免，`specs/archive/` 跳过）、spec 状态缺失或不在枚举、已交付 > 90 天未归档、草稿停滞 > 30 天、活跃 spec > 8 个、缺质量基线快照（在 AGENTS.md「裁剪」区块显式声明不生成可豁免）、缺 `design-tokens.md`（可声明豁免）、未接入任何机器强制层（可声明豁免） |
 | **WARN（预算）** | 规则体量超预算——`AGENTS.md` > 6,000 字符（软基线）/ `rules/` 单文件 > 10,000 / `rules/` 合计 > 40,000；另有两项结构性检查定位「该下沉什么」：`AGENTS.md` 与 `rules/` 段落重复率、单章占比（`sop.config.json` 的 `budgets` 可调，含 `agentsHardMaxChars` 硬红线；`false` 只关体量预算，>400 行检查仍执行）；每次运行都打印实际体量与重复率 |
 | **WARN（可选）** | 代码熵扫描——**仅当 `sop.config.json` 里出现代码扫描字段（`srcDirs` / `checks` / `maxFileLines` 等，或显式 `"codeEntropy": true`）才启用**；只写 `budgets` 调预算不会触发扫描。检查超长源码 / console 残留 / any 类型 / 危险 API / 代码 TODO，各项可配阈值与忽略规则；**启用但未匹配到源文件会告警**（避免 srcDirs 写错时空跑）；无配置文件则完全静默 |
+| **WARN（回归红线）** | `regressionGuards` 已配置阈值但从未用 `--metric` 采集过指标（缺 `ai-context/quality-metrics.json`）——配置了却从不采值的红线比不配置更具误导性 |
 | **WARN（可选·色值）** | 硬编码颜色——代码层匹配 Tailwind 任意值（`-[#hex]` / `-[rgb()]`），样式层匹配原生 CSS 声明（`color: #fff;`）里的裸 hex/rgb/hsl。**样式层由 `styleExtensions` 控制**（默认 `.less/.css/.scss/.sass/.styl`），CSS 变量定义行与 `var(--token)` 引用不计入；token 真源文件须在 `colorAllowPatterns` 登记豁免 |
 
 接入 CI（示例）：
@@ -222,11 +227,13 @@ node scripts/sop-check.mjs --json     # 机器可读输出
 │   ├── design-tokens.md               # 设计 token 清单 + **硬编码值三分类判定** ★（前端项目）
 │   ├── sop-upgrade.md                 # **SOP 升级唯一流程** ★（版本检测 / 取 kit 模板与脚本 / 增量合并 / 降级）
 │   ├── quality-baseline.md            # 质量基线快照（体积/覆盖率/tsc/lint + 回归红线）★
+│   ├── release.md                     # 【可选，触发生成】发布前检查 + 回滚预案（发布动作归线上流水线，SOP 不接管）
 │   ├── configs/                       # 【可选】机器强制层配置模板 ★
 │   │   ├── README.md                  # 三件套分工 + 接入顺序（先定表 → 再翻译 → 先 warn → 转 error）
 │   │   ├── eslint-boundaries.json     # 分层 import 边界（编辑器当场标红）
 │   │   ├── dependency-cruiser.json    # 依赖图健康度（循环依赖 / 孤儿文件 / 跨 feature 引用）
-│   │   └── stylelint.json             # CSS 侧硬编码色值
+│   │   ├── stylelint.json             # CSS 侧硬编码色值
+│   │   └── ci-pipeline.yml            # CI 流水线骨架（lint/typecheck/test/build + audit + sop-check + 红线）★
 │   └── rules/
 │       ├── frontend.md                # 代码风格（必读）+ **硬编码值三分类** + 非功能需求(NFR)节 ★
 │       ├── react.md                   # React 项目宪法 ★（第 0 节：代码风格；后续：Hooks/ErrorBoundary/Suspense 等）
@@ -381,7 +388,8 @@ flowchart TB
 <details>
 <summary>版本历史（CHANGELOG）</summary>
 
-- **v4.4（当前）**：**把「AGENTS.md 字符预算」从单一硬阈值改为分级 + 结构性双指标**——v3.8 设的单一 4,500 字符阈值在两个真实项目上实测**指错了方向**：air-chat 5,553 字符（22 段中与 `rules/` 重复 **0 段**）、ticket-auction 10,814 字符（18 段，重复 **0 段**），两者重复率都是 0%，说明体量来自**项目自身特有信息**（文件索引、仓库地图、红线、常用命令），不是把 `rules/` 抄了两遍。硬卡这个数只会把人推向两条坏路——改配置绕过、或把检查关掉；而检查一旦失效，比没有检查更危险。修法三层：① **分级阈值**——软基线 4,500 → **6,000**（WARN，超了引导覆盖配置而非删内容）、新增硬红线 **12,000**（**FAIL**，~8,400 token 常驻上下文时「每次任务先读它」的纪律事实上已失效）；② **新增结构性检查**（这才是能指出病根的部分）——`AGENTS.md` 与 `rules/` 的**段落重复率**（>30% 或 ≥2 段重复即告警）与**单章占比**（单章 >800 字符且占全文 >50% 即告警，直接指名是哪一章撑大的）；原先的跨文件重复段落检测**只比 `rules/` 内部**，恰恰漏掉了「AGENTS.md 把 rules 抄了一遍」这个最该发现的膨胀方式；③ **模板余量体检**——原模板 4,444/4,500（98.8%）意味着项目一填自己的文件索引就立刻告警，这是设计缺陷而非项目问题，改为「模板不得占用软基线 80% 以上」的自检断言。`kit-self-check` 新增 5 项防回归断言（必须有硬红线 / 必须算重复率 / 必须检测单章占比 / 模板余量 / 预算与脚本默认值一致）。实测 6 场景（含 2 个负例）：3 段抄 2 段 → 报重复率 100%；单章占 100% 且 1,592 字符 → 报单章占比；15,220 字符 → 硬红线 FAIL 且退出码 1；各章均衡 → 不告警；两个真实项目 → 重复率 0%、退出码 0、无误报。——v4.2 的 commit 比对写成「`sop.config.json` 的 `kit.commit` 优先，AGENTS.md 的 `SOP-KIT-COMMIT` 兜底」，**只读其中一处**。而 commit 在两处都会被声明（升级流程第 4 步要求两处都更新），一旦只改了一处——例如改了 AGENTS.md 却忘了 config——检测就会用 config 里的旧值比对，**显示「已是最新」而实际已过期**。这是刚消灭掉的「静默失效」的又一种形态：**漏报**比误报更危险，因为误报会让人去检查，漏报则让人以为一切正常。修法：两处声明**全部收集、逐个比对**，任一过期即报「有更新」，并在告警与输出行里**精确指出是哪一处过期**（`sop.config.json 3a239cc、AGENTS.md 3a239cc`）。同时新增「commit 记录无效」告警（写成 `unknown` 之类占位值时明确提示，而不是静默当成没记录）。`kit-self-check` 新增两项防回归断言（必须收集两处来源、必须逐个比对）。实测四态：AGENTS.md 旧/config 新 → 报有更新并指明 AGENTS.md；AGENTS.md 新/config 旧 → 报有更新并指明 config；两处都新 → 已是最新；两处都旧 → 报有更新并列出两处。
+- **v4.5（当前）**：**补齐「代码写完之后」的工程链路**（对标大厂研发流程审计结论：本 SOP 在约束 AI 写代码上已成熟，弱项是代码合入与发布侧）——① **回归红线机器化（P0）**：`quality-baseline.md` 的回归红线原先只是文档占位符，永远没人比对。现在 `sop.config.json` 新增 `regressionGuards` 配置节（`bundleSizeKb` 基线+涨幅 / `coveragePct` 下限 / `tscErrors` / `lintWarnings` 上限，null=仅记趋势），发版一条命令 `node scripts/sop-check.mjs --metric bundleSizeKb=262 --note "v1.2 发版"` 即完成「采集 → 比对 → 存快照」，超线退出码 1 可接 CI；快照与趋势存 `ai-context/quality-metrics.json`（最近 20 条，随仓库提交）。另加一条 WARN：**红线已配置却从未采值**——配置了但不采集的红线比不配置更具误导性（看起来有防线）；② **CI 流水线模板（P0）**：新增 `configs/ci-pipeline.yml.template`——lint / typecheck / test+coverage / build 四件套 + 依赖安全审计（`npm audit --audit-level=high`，先 `continue-on-error` 观察、清理存量后转阻断）+ `sop-check --strict` 硬门禁 + 红线比对步骤。项目已有 CI 则不新建，只建议补 sop-check 步骤；③ **依赖安全审计**：`review.md` 可执行检查表新增 `npm audit` 行，补齐 supply chain 检查缺口（原先安全轴只有 XSS/敏感信息四条）；④ **人工 review 关卡**：`workflow.md` 阶段 C 明确「AI 五轴自查不替代人工 review——PR 需至少一名成员 approve」，AI 的角色是把 PR 预备好（自查过、证据齐、diff 干净），不是替 reviewer 签字；⑤ `sop-upgrade.md` 增量合并表新增 `quality-metrics.json`（脚本写入的采集快照）**保留不动**、`regressionGuards` 阈值保留项目值不回填默认；⑥ `kit-self-check` 新增多项防回归断言（版本一致性 / CI 与 release 模板存在 / sop-check 实现 --metric / 读取 regressionGuards / 检测格式错误 / 模板四指标齐全 / 安装先删后装 / 禁止复合占位符 / 规则性占位符须有填写指导 / 发布分支触发词）；⑦ **全量审计后修掉的历史缺陷**：**安装残留**（`cp -R` 是合并复制，新版删除的旧文件会留在 `~/.workbuddy/skills/`，AI 可能读到已废弃模板——改为**先删后装**）；**`--all-react` 只装一个工具**（CI 里几乎总是意外，改为与 `--all` 一致装两个，单独装用 `workbuddy` / `codebuddy`）；**kit 命名三套并存**（`yh-sop-fe-kit` / `sop-frontend-kit` / `fe-sop-kit` → 统一为 `fe-sop-kit`）；**SKILL.md 复合占位符写法** `{{REGRESSION_GUARD_1/2}}`——`sop-check` 残留检测正则只认 `{{A-Z0-9_}}`，含 `/` 的写法**检不出来会静默漏填**，改为逐个写全；**76 处模板占位符在 SKILL.md 无填写指导**——规则性内容（必过关卡 / 高风险判据 / 落点决策树）会被填成空话，等于把「验证优于说教」关掉，现逐文件补齐填写方法并加「占位符清点」总则；**`{{KIT_VERSION}}` 指向了 AGENTS.md 里不存在的占位符**（会误导 AI 自造标记）；⑧ 修复两类红线静默失效——`regressionGuards` 值写成非对象（含内层阈值写成字符串）、`regressionGuards` 写成数组、`sop.config.json` 损坏时，红线本会不声不响地完全不比对，现在明确判失败并指出原因（「看起来有防线」比没有防线更危险），且 `--metric` 模式与普通模式的判定标准已统一（此前两处实现不一致，数组场景一处报错一处放行）；⑨ `kit-self-check` 新增防线：禁止复合占位符写法（FAIL，防止静默漏填）、规则性模板占位符缺填写指导（FAIL）；⑩ **发布/回滚改为「可触发能力分支」**——部署流水线与发布回滚通常由项目已有的线上 Jenkins 等承接，SOP **不接管、不强制、不在初始化生成**：新增可选模板 `ai-context/release.md`（发布前检查清单 + 回滚预案 + 与线上流水线的衔接声明），用户说「建立发布流程 / 生成发布预案」时才生成，没有它的项目零告警；`workflow.md` 新增「发布/回滚」分支节（默认边界到「合入主干 + 验证证据」；用户意图为发布/回滚时按预案核对——按意图判断而非字面命中，避免「发布这个组件」这类日常表述误触，**不替用户触发发布**）；CI 模板定位同步澄清为**质量门禁流水线**（不含部署/发布）。
+- **v4.4**：**把「AGENTS.md 字符预算」从单一硬阈值改为分级 + 结构性双指标**——v3.8 设的单一 4,500 字符阈值在两个真实项目上实测**指错了方向**：air-chat 5,553 字符（22 段中与 `rules/` 重复 **0 段**）、ticket-auction 10,814 字符（18 段，重复 **0 段**），两者重复率都是 0%，说明体量来自**项目自身特有信息**（文件索引、仓库地图、红线、常用命令），不是把 `rules/` 抄了两遍。硬卡这个数只会把人推向两条坏路——改配置绕过、或把检查关掉；而检查一旦失效，比没有检查更危险。修法三层：① **分级阈值**——软基线 4,500 → **6,000**（WARN，超了引导覆盖配置而非删内容）、新增硬红线 **12,000**（**FAIL**，~8,400 token 常驻上下文时「每次任务先读它」的纪律事实上已失效）；② **新增结构性检查**（这才是能指出病根的部分）——`AGENTS.md` 与 `rules/` 的**段落重复率**（>30% 或 ≥2 段重复即告警）与**单章占比**（单章 >800 字符且占全文 >50% 即告警，直接指名是哪一章撑大的）；原先的跨文件重复段落检测**只比 `rules/` 内部**，恰恰漏掉了「AGENTS.md 把 rules 抄了一遍」这个最该发现的膨胀方式；③ **模板余量体检**——原模板 4,444/4,500（98.8%）意味着项目一填自己的文件索引就立刻告警，这是设计缺陷而非项目问题，改为「模板不得占用软基线 80% 以上」的自检断言。`kit-self-check` 新增 5 项防回归断言（必须有硬红线 / 必须算重复率 / 必须检测单章占比 / 模板余量 / 预算与脚本默认值一致）。实测 6 场景（含 2 个负例）：3 段抄 2 段 → 报重复率 100%；单章占 100% 且 1,592 字符 → 报单章占比；15,220 字符 → 硬红线 FAIL 且退出码 1；各章均衡 → 不告警；两个真实项目 → 重复率 0%、退出码 0、无误报。——v4.2 的 commit 比对写成「`sop.config.json` 的 `kit.commit` 优先，AGENTS.md 的 `SOP-KIT-COMMIT` 兜底」，**只读其中一处**。而 commit 在两处都会被声明（升级流程第 4 步要求两处都更新），一旦只改了一处——例如改了 AGENTS.md 却忘了 config——检测就会用 config 里的旧值比对，**显示「已是最新」而实际已过期**。这是刚消灭掉的「静默失效」的又一种形态：**漏报**比误报更危险，因为误报会让人去检查，漏报则让人以为一切正常。修法：两处声明**全部收集、逐个比对**，任一过期即报「有更新」，并在告警与输出行里**精确指出是哪一处过期**（`sop.config.json 3a239cc、AGENTS.md 3a239cc`）。同时新增「commit 记录无效」告警（写成 `unknown` 之类占位值时明确提示，而不是静默当成没记录）。`kit-self-check` 新增两项防回归断言（必须收集两处来源、必须逐个比对）。实测四态：AGENTS.md 旧/config 新 → 报有更新并指明 AGENTS.md；AGENTS.md 新/config 旧 → 报有更新并指明 config；两处都新 → 已是最新；两处都旧 → 报有更新并列出两处。
 - **v4.3**：**修「远端版本检测漏报」**（源自 air-chat 试点实测）——v4.2 的 commit 比对写成「`sop.config.json` 的 `kit.commit` 优先，AGENTS.md 的 `SOP-KIT-COMMIT` 兜底」，**只读其中一处**。而 commit 在两处都会被声明（升级流程第 4 步要求两处都更新），一旦只改了一处——例如改了 AGENTS.md 却忘了 config——检测就会用 config 里的旧值比对，**显示「已是最新」而实际已过期**。这是刚消灭掉的「静默失效」的又一种形态：**漏报**比误报更危险，因为误报会让人去检查，漏报则让人以为一切正常。修法：两处声明**全部收集、逐个比对**，任一过期即报「有更新」，并在告警与输出行里**精确指出是哪一处过期**（`sop.config.json 3a239cc、AGENTS.md 3a239cc`）。同时新增「commit 记录无效」告警（写成 `unknown` 之类占位值时明确提示，而不是静默当成没记录）。`kit-self-check` 新增两项防回归断言（必须收集两处来源、必须逐个比对）。实测四态：AGENTS.md 旧/config 新 → 报有更新并指明 AGENTS.md；AGENTS.md 新/config 旧 → 报有更新并指明 config；两处都新 → 已是最新；两处都旧 → 报有更新并列出两处。
 - **v4.2**：**让「更新 SOP」不再依赖本机装了 Skill**——升级流程原先只写在 `skills/sop-init-frontend/SKILL.md` 里，而那份文件**只存在于 Skill 安装目录**。没装 Skill 的用户（同事的机器、CI 环境、只 clone 了项目代码）手里根本没有升级流程，AI 无从知道去哪里取官方模板与脚本，转头就会自行手写替代实现——**这正是 v4.1 事故的同一个根因在升级链路上的复现**。修法四条：① **项目内自带升级流程**——新增模板 `ai-context/sop-upgrade.md`（随项目入库），内含「版本检测 → 取 kit 模板与官方脚本 → 增量合并 → 网络不可达时降级」完整流程，并**明令禁止手写替代实现**；AGENTS.md 顶部新增「十一、SOP 升级（AI 必读）」指路，AI 读到就知道该读哪；② **未装 Skill 时的自举路径**——`git clone --depth 1 <repo> <项目内临时目录>`（临时目录放项目内 `.workbuddy/`，不写系统目录；网络不稳定最多重试 3 次），从 `<临时目录>/skills/sop-init-frontend/` 取 `templates/` 与 `scripts/`；③ **版本检测从版本号升级为 commit 级**——新增 `AGENTS.md` 的 `SOP-KIT-REPO` / `SOP-KIT-COMMIT` 标记与 `sop.config.json` 的 `kit` 字段（repo / branch / version / commit / checkRemote），`sop-check` 用 `git ls-remote --heads` 取远端分支 sha 与本地记录的 commit 比对，有更新即告警。只比版本号会漏检「版本号未变但模板已改」——那正是「项目脚本停留在旧版、文档宣称能力与实际脱节」的来源。检测 8 秒超时、失败重试一次、**网络不可达则静默降级绝不阻断**（离线 CI 也能跑），可用 `"kit": { "checkRemote": false }` 关闭；④ **溯源信息自动写入**——`install.sh` 安装 Skill 时写 `kit-source.json`（version / commit / repo / installedAt），初始化时据此填入 AGENTS.md 的 `{{KIT_COMMIT}}`，杜绝编造 sha；`kit-self-check` 新增 8 项防回归断言（升级流程模板存在且含 clone 与禁手写、AGENTS.md 模板含两个溯源标记、config 模板含 kit 字段、sop-check 实现 ls-remote 且读标记、install.sh 写 kit-source.json）。
 - **v4.1**：**修「门禁本身失效」的两类根因**（源自 ticket-auction 项目实测）——① **官方脚本随 Skill 分发（P0）**：`scripts/sop-check.mjs` 原先只在 kit 仓库根的 `scripts/` 下，而 `install.sh` 只复制 `skills/` 目录，导致**装到别人主机上的 Skill 里没有官方脚本**。AI 执行「初始化 SOP」时找不到它，于是自己手写了一份 151 行简化实现（文件头甚至写着「本 kit 未提供官方脚本」）——那份手写版的 ignore 规则用 `p.replace(/\*\*\//g,'') + rel.includes()`，**永远匹配不到真实路径**（`src/utils/bid.test.ts` 匹配 `*.test.*` 恒为 false），扩展名表也只有 ts/tsx/js/jsx，**样式文件完全不扫描**。两处检查全部静默失效，却看起来「有门禁」。修法：脚本 `git mv` 到 `skills/sop-init-frontend/scripts/`（Skill 自带，随安装分发到 `~/.workbuddy` 与 `~/.codebuddy`），SKILL.md 生成清单与升级流程改指该路径并**明令禁止手写替代实现**，`kit-self-check` 新增三项防回归校验（脚本必须在 Skill 目录 / SKILL.md 必须指向它 / install.sh 必须整目录复制）；② **新增样式层色值扫描**：`sop-check` 原来只匹配 Tailwind 任意值形态（`-[#hex]`），样式文件里的原生声明（`color: #fff;`）完全扫不到——而这恰恰是很多项目的色值漂移主战场（实测某项目样式层 35 处裸色值、代码层 0 处）。新增 `styleExtensions` 配置（默认 `.less/.css/.scss/.sass/.styl`）与独立的「样式层」告警桶，排除 CSS 变量定义行与 `var(--token)` 引用，token 真源文件走 `colorAllowPatterns` 豁免；③ 顺带修正 `SKILL.md` 阶段 0 的硬编码色值探测——明确要求样式文件单独统计。

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# yh-sop-fe-kit 互动式安装脚本  v4.4
+# fe-sop-kit 互动式安装脚本  v4.5
 #
 # 自有 Skill（本仓库维护，始终安装）：
 #   - sop-init-frontend  — 提供「初始化 SOP」触发词
@@ -16,8 +16,9 @@
 # 用法：
 #   Windows：直接双击或用 cmd/PowerShell 运行  scripts\install.bat
 #   Git Bash / Terminal：          bash scripts/install.sh
-#   非互动模式（CI）：             bash scripts/install.sh --all-react|--all-vue|--all
-#   直接指定工具（仍会问框架）：    bash scripts/install.sh workbuddy|codebuddy
+#   非互动模式（CI，装到两个工具）：bash scripts/install.sh --all-react|--all-vue|--all
+#   只装单个工具（仍会问框架）：    bash scripts/install.sh workbuddy|codebuddy
+#   帮助：                          bash scripts/install.sh --help
 # ==============================================================================
 
 set -euo pipefail
@@ -84,7 +85,12 @@ install_to() {
       echo "  ⚠️  跳过 $skill（源目录不存在: $src）"
       continue
     fi
-    cp -Rf "$src" "$skills_dir/"
+    # 先删后装，不能直接 cp 覆盖：cp -R 是「合并」，新版删掉的文件会留在旧目录里
+    # （版本碎片）。实测：v4.5 删掉的模板文件在升级后依然存在于 ~/.workbuddy/skills/，
+    # 而 Skill 目录一旦残留旧文件，AI 可能读到已废弃的模板——比「没升级」更危险。
+    local dst="$skills_dir/$skill"
+    rm -rf "$dst"
+    cp -Rf "$src" "$dst"
     echo "  ✓ $skill"
   done
 
@@ -103,7 +109,7 @@ install_to() {
 interactive_choose() {
   echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "  yh-sop-fe-kit v4.4 — Skill 安装"
+  echo "  fe-sop-kit v4.5 — Skill 安装"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo ""
   echo "  自有 Skill（始终安装）："
@@ -194,16 +200,37 @@ EXTRA_SKILLS=""
 SKIP_TOOL_PROMPT=0
 
 case "$arg" in
-  --all-react) TOOLS=(workbuddy);     EXTRA_SKILLS="react" ;;
-  --all-vue)   TOOLS=(workbuddy);     EXTRA_SKILLS="vue" ;;
+  # 非交互模式的工具维度统一为「两个都装」：CI 里只装一半工具几乎总是意外。
+  # 只想装单个工具时用显式的 workbuddy / codebuddy 参数。
+  --all-react) TOOLS=(workbuddy codebuddy); EXTRA_SKILLS="react" ;;
+  --all-vue)   TOOLS=(workbuddy codebuddy); EXTRA_SKILLS="vue" ;;
   --all)       TOOLS=(workbuddy codebuddy); EXTRA_SKILLS="both" ;;
   workbuddy)   TOOLS=(workbuddy);     SKIP_TOOL_PROMPT=1 ;;
   codebuddy)   TOOLS=(codebuddy);     SKIP_TOOL_PROMPT=1 ;;
+  -h|--help)   TOOLS=(); SKIP_TOOL_PROMPT=1; SHOW_HELP=1 ;;
   "")          : ;;  # 互动模式：工具 + 框架都问
   *) echo "❌ 未知参数: $arg" >&2
      echo "   用法: bash scripts/install.sh [--all-react|--all-vue|--all|workbuddy|codebuddy]" >&2
      exit 1 ;;
 esac
+
+if [[ "${SHOW_HELP:-0}" -eq 1 ]]; then
+  cat <<'HELP'
+用法: bash scripts/install.sh [参数]
+
+  （无参数）           互动模式：依次选择 AI 工具与框架
+  workbuddy           只装到 WorkBuddy（框架仍会询问）
+  codebuddy           只装到 CodeBuddy（框架仍会询问）
+  --all-react         两个工具 + React 生态建议（CI 用）
+  --all-vue           两个工具 + Vue 生态建议（CI 用）
+  --all               两个工具 + React/Vue 生态建议
+  -h, --help          显示本帮助
+
+说明：Skill 安装在用户级（~/.workbuddy/skills 与 ~/.codebuddy/skills），
+      升级一次所有项目通用；框架官方 Skill 只会打印安装命令，不会自动执行。
+HELP
+  exit 0
+fi
 
 # 互动模式：先选工具（除非已用 workbuddy/codebuddy 指定），再选框架
 if [[ ${#TOOLS[@]} -eq 0 ]]; then

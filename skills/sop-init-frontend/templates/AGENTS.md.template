@@ -1,4 +1,4 @@
-<!-- SOP-VERSION: 4.4 -->
+<!-- SOP-VERSION: 4.5 -->
 <!-- SOP-KIT-REPO: {{KIT_REPO}} -->
 <!-- SOP-KIT-COMMIT: {{KIT_COMMIT}} -->
 # AGENTS.md — {{PROJECT_NAME}} 前端 AI 协作入口
@@ -49,6 +49,7 @@
 | `ai-context/sop-upgrade.md` | **SOP 升级唯一流程**（版本检测 / 取 kit 模板与官方脚本 / 增量合并 / 降级） | 用户说「更新 SOP」 |
 | `specs/INDEX.md` | 历史 spec 索引（一行一个结论） | 查「当初为什么这么做」 |
 | `ai-context/quality-baseline.md` | 质量基线（体积/覆盖率/tsc/lint） | 性能敏感改动 / 发版前 |
+| `ai-context/release.md` | 发布前检查清单与回滚预案（**可选，触发生成**；发布动作归线上流水线）。**本项目未生成此文件时删除本行** | 用户意图是执行发布/回滚流程时 |
 | `rules/frontend.md` | 代码风格、设计决策卡、NFR | 前端任务（L1+） |
 | `rules/react.md` / `vue.md` / `framework-generic.md` | 框架专属约束（按项目生成其一，第 0 节为项目代码风格） | 对应框架任务（L2+） |
 | `rules/workflow.md` | 流程纪律、分级细则、任务分类、复盘 | L2/L3 |
@@ -86,7 +87,9 @@
 
 ## 十、SOP 健康检查
 
-`node scripts/sop-check.mjs`（`--strict` 让 WARN 阻断、`--json` 机器可读）——检查结构、版本漂移、**kit 远端是否有新版本**、占位符、TODO、规则体量预算、specs 生命周期、设计 token 体系、机器强制层、代码熵（硬编码色值分代码层 / 样式层；需 `sop.config.json` 含扫描字段，否则静默）。
+`node scripts/sop-check.mjs`（`--strict` 让 WARN 阻断、`--json` 机器可读）——检查结构、版本漂移、**kit 远端是否有新版本**、占位符、TODO、规则体量预算、specs 生命周期、设计 token 体系、机器强制层、代码熵（硬编码色值分代码层 / 样式层；需 `sop.config.json` 含扫描字段，否则静默）、**回归红线**（`regressionGuards` 已配置但从未采集指标会告警）。
+
+**回归红线比对**（发版/里程碑）：`node scripts/sop-check.mjs --metric bundleSizeKb=<数值> [--metric coveragePct=<数值>]`——与 `sop.config.json` 的 `regressionGuards` 阈值比对，超线即失败；快照存 `ai-context/quality-metrics.json`。
 
 「更新 SOP」时 `scripts/sop-check.mjs` **用 kit 最新版整体覆盖**（源在 kit 仓库 `sop-init-frontend` Skill 目录的 `scripts/` 下，**禁止手写替代实现**）。
 

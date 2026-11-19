@@ -14,8 +14,23 @@
 | `dependency-cruiser.json` | 依赖图健康度 | CI | 循环依赖、孤儿文件、feature 跨域引用 |
 | `stylelint.json` | CSS 侧硬编码色值 | 编辑器 + CI | CSS 里的裸 hex / 非变量赋值 |
 
-配套还有一项在 kit 主脚本里：**`sop-check.mjs` 的「硬编码颜色」检查项**，
-管 JSX 侧 Tailwind 任意值里的颜色字面量（stylelint 管不到 className）。
+配套还有两项在 kit 主脚本里：**`sop-check.mjs` 的「硬编码颜色」检查项**，
+管 JSX 侧 Tailwind 任意值里的颜色字面量（stylelint 管不到 className）；
+以及 **`sop-check.mjs --metric` 的回归红线比对**（见 `ci-pipeline.yml.template`）。
+
+## CI 流水线（ci-pipeline.yml.template）
+
+三件套管「代码怎么写」，CI 管「什么能合入」。`ci-pipeline.yml.template` 是编排层：
+
+| 步骤 | 内容 | 性质 |
+|------|------|------|
+| lint / typecheck / test / build | 项目质量四件套（命令取自 package.json scripts） | 阻断 |
+| 依赖安全审计 | `npm audit --audit-level=high` | 先观察后阻断 |
+| SOP 健康检查 | `node scripts/sop-check.mjs --strict` | 阻断 |
+| 红线比对（可选） | `--metric bundleSizeKb=…` 与 `regressionGuards` 比对 | 配置后阻断 |
+
+接入方式：AI 初始化时复制到 `.github/workflows/ci.yml` 并替换真实命令名（GitLab 翻译为 `.gitlab-ci.yml`）。
+接入顺序同三件套：**先跑通全绿，再逐项收紧为阻断**——一上来全开 error，团队的反应是关掉流水线。
 
 ## 接入方式
 

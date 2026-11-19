@@ -1,0 +1,65 @@
+# CI 流水线模板（GitHub Actions 版）
+#
+# 定位：**质量门禁流水线**——只管「什么能合入主干」，不含部署与发布。
+# 发布/回滚由项目已有的线上流水线（Jenkins / GitLab CI 等）承接，本模板不重复建设；
+# 发布前的质量核对清单见 ai-context/release.md（可选，按需生成）。
+#
+# 用法：本文件是模板骨架。初始化 SOP 时由 AI 复制到 .github/workflows/ci.yml，
+# 并把命令名替换为 package.json scripts 里的真实命令（lint / typecheck / test:coverage / build）。
+# 项目没有对应 script 的步骤如实删除并在 PR 说明，不要编造命令。
+#
+# GitLab 用户：翻译成 .gitlab-ci.yml 的 stages 写法，检查项一一对应即可。
+#
+# 定位：lint / typecheck / test / build 走项目自身命令；本模板把 SOP 的门禁接入 CI——
+#   ① node scripts/sop-check.mjs --strict —— SOP 健康检查（占位符/版本/体量/代码熵/色值）
+#   ② --metric 红线比对 —— 需先在 sop.config.json 的 regressionGuards 配置阈值
+#   ③ 依赖安全审计 —— 高危漏洞即失败（存量项目先 continue-on-error 观察）
+#
+# 接入顺序与机器强制层一致：先让流水线跑通（全绿），再逐项收紧为阻断。
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      # ── 项目质量四件套（命令名按 package.json scripts 调整）──
+      - name: Lint
+        run: npm run lint
+      - name: 类型检查
+        run: npm run typecheck
+      - name: 单测 + 覆盖率
+        run: npm run test:coverage
+      - name: 构建
+        run: npm run build
+
+      # ── 依赖安全审计（supply chain）──
+      # 高危及以上漏洞即失败。存量项目先保留 continue-on-error 观察一周，
+      # 清理存量后删掉该行，变成真正的硬门禁。pnpm 项目改用：pnpm audit --prod --audit-level high
+      - name: 依赖安全审计
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      # ── SOP 硬门禁 ──
+      # strict 模式：SOP 层面的任何 WARN 也算失败（占位符未填 / 版本漂移 / 规则超预算 /
+      # 硬编码色值 / 代码熵）。网络不可达时远端检测自动降级，不会误伤离线 runner。
+      - name: SOP 健康检查
+        run: node scripts/sop-check.mjs --strict
+
+      # ── 质量红线比对（可选，配置 regressionGuards 后启用）──
+      # 从构建产物取主 bundle 体积（gzip）上报，与红线比对，超线即失败。
+      # 数值来源按项目构建工具调整（vite: rollup-plugin-visualizer / build 产物统计）。
+      # - name: 质量红线比对
+      #   run: node scripts/sop-check.mjs --metric bundleSizeKb=$(stat -c %s dist/index.js | awk '{printf "%.1f", $1/1024}')

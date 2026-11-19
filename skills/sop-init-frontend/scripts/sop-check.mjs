@@ -1,12 +1,16 @@
 #!/usr/bin/env node
-// SOP-CHECK-VERSION: 4.4
+// SOP-CHECK-VERSION: 4.5
 // ==============================================================================
-// sop-check.mjs — SOP 健康检查（硬门禁 + 熵检测 + 设计体系检测）
+// sop-check.mjs — SOP 健康检查（硬门禁 + 熵检测 + 设计体系检测 + 回归红线）
 //
 // 在「已初始化 SOP 的项目根目录」运行。零依赖，仅需 Node。
 //   node scripts/sop-check.mjs            # 检查（WARN 不阻断）
 //   node scripts/sop-check.mjs --strict   # WARN 也算失败（CI 用）
 //   node scripts/sop-check.mjs --json     # 机器可读输出
+//   node scripts/sop-check.mjs --metric bundleSizeKb=262 [--metric coveragePct=58] [--note "原因"]
+//                                         # 质量红线比对：与 sop.config.json 的
+//                                         # regressionGuards 比对，违规即退出码 1，
+//                                         # 并把快照写入 ai-context/quality-metrics.json
 //
 // 本脚本无项目特定内容：「更新 SOP」时请直接用 kit 最新版**整体覆盖**。
 // 头部 SOP-CHECK-VERSION 标记用于与 kit 版本对照，请勿删除。
@@ -17,12 +21,12 @@
 //   对应 HE 的 "entropy garbage collection"窄版本。
 // ==============================================================================
 
-import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { execFileSync } from "node:child_process";
 
-const KIT_VERSION = "4.4"; // 与 kit 当前版本对齐，用于漂移检测
-const SCRIPT_VERSION = "4.4"; // 与头部 SOP-CHECK-VERSION 标记一致
+const KIT_VERSION = "4.5"; // 与 kit 当前版本对齐，用于漂移检测
+const SCRIPT_VERSION = "4.5"; // 与头部 SOP-CHECK-VERSION 标记一致
 const cwd = process.cwd();
 const args = new Set(process.argv.slice(2));
 const STRICT = args.has("--strict");
@@ -106,6 +110,130 @@ let cfgInvalid = false;
 if (cfgText) {
   try { projectCfg = JSON.parse(cfgText); }
   catch { cfgInvalid = true; }
+}
+
+// ── 0b. 回归红线：指标采集与比对（--metric 模式）★ ──
+// 质量红线若只写在 quality-baseline.md 的表格里，就永远是「建议」——没有人会记得
+// 在每次发版前手动比对。本模式把「上报一个值 → 与红线比对 → 存快照」变成一条命令：
+//   node scripts/sop-check.mjs --metric bundleSizeKb=262 --metric coveragePct=58 --note "v1.2 发版"
+// 红线定义在 sop.config.json 的 regressionGuards（null = 未设，仅记录趋势）：
+//   { "bundleSizeKb": { "baseline": 260, "maxDeltaPct": 10 },   // 上界 = baseline×(1+pct%)
+//     "coveragePct":  { "min": 60 },                            // 下界
+//     "tscErrors":    { "max": 0 }, "lintWarnings": { "max": 100 } }  // 上界
+// 快照写入 ai-context/quality-metrics.json（保留最近 20 条历史，供趋势对比）。
+// 本模式独立运行，不执行其余健康检查（它是 CI 的一个轻量步骤，不该被网络检测等拖慢）。
+{
+  const metricPairs = [];
+  const raw = process.argv.slice(2);
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i] === "--metric" && raw[i + 1] !== undefined) metricPairs.push(raw[++i]);
+    else if (/^--metric=/.test(raw[i])) metricPairs.push(raw[i].slice("--metric=".length));
+  }
+  if (metricPairs.length) {
+    const guardsRaw = !cfgInvalid && projectCfg ? projectCfg.regressionGuards : undefined;
+    // 数组的 typeof 也是 "object"，必须显式排除——regressionGuards: [] 会静默变成「无任何红线」。
+    const guardsCfg = guardsRaw && typeof guardsRaw === "object" && !Array.isArray(guardsRaw)
+      ? guardsRaw : null;
+    // 配置写错必须出声，两类都算格式错误：
+    // ① 值不是对象（写成数字/字符串/数组）；
+    // ② 对象内层阈值不是数字也不是 null（如 "baseline": "260" 字符串数字）——
+    //    evaluate 的 Number.isFinite 会把它当「未配置」放过，用户以为有防线实际一条都没生效。
+    // 这是本项目反复消灭的「静默失效」形态，故错误配置直接判失败，让 CI 当场红掉。
+    const isBadGuard = (v) => {
+      if (v === null || v === undefined) return false;
+      if (typeof v !== "object" || Array.isArray(v)) return true;
+      return Object.values(v).some((x) => x !== null && x !== undefined && !Number.isFinite(x));
+    };
+    const malformedGuards = Array.isArray(guardsRaw)
+      ? ["(整个 regressionGuards 是数组，应为对象)"]
+      : guardsRaw
+        ? Object.entries(guardsRaw).filter(([, v]) => isBadGuard(v)).map(([k]) => k)
+        : [];
+    const cfgIssue = cfgInvalid
+      ? "sop.config.json 不是合法 JSON，regressionGuards 未生效"
+      : malformedGuards.length
+        ? `regressionGuards 格式错误（${malformedGuards.join(", ")}）— 值应为 { min/max/baseline+maxDeltaPct: number }`
+        : "";
+    // 完全没有配置文件时不判失败（仅记录趋势是合法用法），但必须说清楚——
+    // 否则 CI 里这条命令看起来在「执行红线」，实际一条红线都没有。
+    const noCfgNote = !cfgText && !cfgInvalid
+      ? "未找到 sop.config.json——未配置任何红线，本次仅记录趋势（若本应设红线，请先补 regressionGuards 配置）"
+      : "";
+    const noteIdx = process.argv.indexOf("--note");
+    const noteValue = noteIdx >= 0 ? process.argv[noteIdx + 1] : undefined;
+    const note = noteValue && !noteValue.startsWith("--") ? noteValue : "";
+    // 上界三形态：baseline+maxDeltaPct（相对基线）或 max（绝对上界）；下界一形态：min。
+    const evaluate = (key, value) => {
+      const g = guardsCfg && guardsCfg[key] && typeof guardsCfg[key] === "object" ? guardsCfg[key] : null;
+      if (!g) return { ok: true, desc: "未配置红线，仅记录趋势" };
+      if (Number.isFinite(g.baseline)) {
+        const pct = Number.isFinite(g.maxDeltaPct) ? g.maxDeltaPct : 0;
+        const limit = g.baseline * (1 + pct / 100);
+        return value <= limit
+          ? { ok: true, desc: `红线 ≤ ${limit.toFixed(1)}（基线 ${g.baseline} +${pct}%）` }
+          : { ok: false, desc: `超出红线 ${limit.toFixed(1)}（基线 ${g.baseline} +${pct}%）` };
+      }
+      if (Number.isFinite(g.min)) {
+        return value >= g.min
+          ? { ok: true, desc: `红线 ≥ ${g.min}` }
+          : { ok: false, desc: `低于红线 ${g.min}` };
+      }
+      if (Number.isFinite(g.max)) {
+        return value <= g.max
+          ? { ok: true, desc: `红线 ≤ ${g.max}` }
+          : { ok: false, desc: `超出红线 ${g.max}` };
+      }
+      return { ok: true, desc: "阈值未配置（null），仅记录趋势" };
+    };
+    const incoming = {};
+    const badPairs = [];
+    for (const pair of metricPairs) {
+      const m = pair.match(/^([A-Za-z][A-Za-z0-9_]*)=(-?\d+(?:\.\d+)?)$/);
+      if (!m) { badPairs.push(pair); continue; }
+      incoming[m[1]] = Number(m[2]);
+    }
+    const results = Object.entries(incoming).map(([k, v]) => ({ key: k, value: v, ...evaluate(k, v) }));
+    const allOk = !badPairs.length && !cfgIssue && results.every((r) => r.ok);
+    // 读写快照：与上一次合并（未上报的指标沿用旧值），历史留最近 20 条。
+    // 存在无法解析的参数时不写快照——那是一次错误调用，记进去只会污染趋势。
+    let snapshot = null;
+    let snapshotSaved = false;
+    let snapshotRebuilt = false;
+    if (!badPairs.length) {
+      let prevData = null;
+      const prevText = readText(join(cwd, "ai-context", "quality-metrics.json"));
+      if (prevText) {
+        try { prevData = JSON.parse(prevText); } catch { prevData = null; snapshotRebuilt = true; }
+      }
+      const merged = { ...(prevData && typeof prevData.metrics === "object" && !Array.isArray(prevData.metrics) ? prevData.metrics : {}), ...incoming };
+      const history = [...(prevData && Array.isArray(prevData.history) ? prevData.history : []),
+        { date: new Date().toISOString().slice(0, 10), metrics: incoming, note }];
+      snapshot = { updated: new Date().toISOString(), metrics: merged, history: history.slice(-20) };
+      try {
+        mkdirSync(join(cwd, "ai-context"), { recursive: true });
+        writeFileSync(join(cwd, "ai-context", "quality-metrics.json"), JSON.stringify(snapshot, null, 2) + "\n");
+        snapshotSaved = true;
+      } catch (e) {
+        process.stdout.write(JSON_OUT ? "" : `   ⛔ 快照写入失败：${e.message}\n`);
+      }
+    }
+    if (JSON_OUT) {
+      console.log(JSON.stringify({ ok: allOk, mode: "metric", metrics: incoming, results, configIssue: cfgIssue || null, configNote: noCfgNote || null, snapshotWritten: snapshotSaved, snapshotRebuilt, snapshot: "ai-context/quality-metrics.json" }, null, 2));
+    } else {
+      console.log("\n📊 质量指标采集与红线比对");
+      for (const pair of badPairs) console.log(`   ⛔ 无法解析：${pair}（格式应为 key=数字）`);
+      if (cfgIssue) console.log(`   ⛔ ${cfgIssue}——红线未生效，本次不接受为通过。`);
+      for (const r of results) console.log(`   ${cfgIssue ? "⚠️ " : r.ok ? "✅" : "⛔"} ${r.key}=${r.value} ｜ ${r.desc}`);
+      if (snapshotSaved) console.log(`   快照已写入 ai-context/quality-metrics.json（历史 ${snapshot.history.length} 条）`);
+      else if (snapshot) console.log("   ⛔ 快照写入失败——趋势未持久化，但不影响本次红线判定。");
+      else console.log("   参数解析失败，本次未写快照。");
+      if (snapshotRebuilt) console.log("   ⚠️ 原快照文件无法解析，历史已重建（原有历史数据丢失，请检查该文件是否被手动改坏）。");
+      if (noCfgNote) console.log(`   ℹ️ ${noCfgNote}`);
+      if (!allOk) console.log("   红线违规或配置有误——修回归/修配置后再上报。");
+      console.log("");
+    }
+    process.exit(allOk ? 0 : 1);
+  }
 }
 
 // ── 1. 入口与版本标记（FAIL）──
@@ -384,6 +512,34 @@ const NEG_OPT_OUT = /不生成|不接入|不启用|不要|无需|不设|不采�
 const baselineOptOut = declaredOptOut(/quality-baseline|质量基线/i, NEG_OPT_OUT);
 if (!existsSync(baselinePath) && !baselineOptOut) {
   warn("缺少 ai-context/quality-baseline.md——建议初始化时采一次质量基线（体积/覆盖率/tsc/lint），作为改动前后的对照基准。若项目主动不要，请在 AGENTS.md「本项目对 SOP 的裁剪」写明「不生成 quality-baseline」以免告警。");
+}
+
+// ── 7b-2. 回归红线已配置但从未采集（WARN）──
+// regressionGuards 里的阈值只有配合「实际采值」才有拦截意义；配置了却从不
+// --metric 上报，等于一条永远不触发的规则——比不配置更具误导性（看起来有防线）。
+{
+  const guardsRaw = projectCfg && typeof projectCfg.regressionGuards === "object" && !Array.isArray(projectCfg.regressionGuards)
+    ? projectCfg.regressionGuards : null;
+  const guardConfigured = !!guardsRaw && Object.values(guardsRaw).some(
+    (g) => g && typeof g === "object" && !Array.isArray(g) && Object.values(g).some((v) => Number.isFinite(v))
+  );
+  // 格式错误（值不是对象、是数组、或内层阈值不是数字）同样要出声：这类配置不会
+  // 参与比对，若不提示就是「看似有防线、实际完全不拦」——与下面「配了却从不采值」
+  // 是同一类静默失效。检测逻辑须与 --metric 模式保持一致，否则两处判定标准漂移。
+  const isBadGuard = (v) => {
+    if (v === null || v === undefined) return false;
+    if (typeof v !== "object" || Array.isArray(v)) return true;
+    return Object.values(v).some((x) => x !== null && x !== undefined && !Number.isFinite(x));
+  };
+  const malformed = guardsRaw
+    ? Object.entries(guardsRaw).filter(([, v]) => isBadGuard(v)).map(([k]) => k)
+    : (projectCfg && Array.isArray(projectCfg.regressionGuards) ? ["(整个 regressionGuards 是数组，应为对象)"] : []);
+  if (malformed.length) {
+    warn(`sop.config.json 的 regressionGuards 格式错误：${malformed.join(", ")} 的值应为对象（{ min/max/baseline+maxDeltaPct: number }），当前不参与比对——请修正，否则红线静默失效。`);
+  }
+  if (guardConfigured && !existsSync(join(cwd, "ai-context", "quality-metrics.json"))) {
+    warn("sop.config.json 已配置 regressionGuards，但从未采集过指标（缺 ai-context/quality-metrics.json）——红线只有采过值才能拦截。里程碑/发版时执行：node scripts/sop-check.mjs --metric bundleSizeKb=<数值>（体积/覆盖率/tsc/lint 命令见 ai-context/quality-baseline.md）。");
+  }
 }
 
 // ── 7c. 设计 Token 体系（WARN，可裁剪）──

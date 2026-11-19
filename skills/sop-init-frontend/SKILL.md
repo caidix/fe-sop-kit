@@ -3,7 +3,7 @@ name: sop-init-frontend
 description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意前端项目后调用，自动扫描项目结构并生成 AGENTS.md + ai-context/ + rules/ + specs/ + quality-baseline（demo/ 可选）。适配 React/Vue/Taro/Next.js 等主流前端框架。
 ---
 
-<!-- SOP-VERSION: 4.4 -->
+<!-- SOP-VERSION: 4.5 -->
 
 # sop-init-frontend — 前端项目 AI 协作脚手架初始化（可插拔）
 
@@ -13,6 +13,7 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 ## 触发条件
 - **首次初始化**：用户在任意前端项目中说 **「初始化 SOP」「建立 AI 协作规范」「sop-init-frontend」「生成项目 rules」** 时执行。
 - **版本升级**：用户说 **「更新 SOP」「升级脚手架」「同步最新规范」「更新规范」** 时执行（详见文末「SOP 版本升级」章节）。仅当项目已存在 `AGENTS.md` 且顶部有 `SOP-VERSION` 标记时有效。**不要求本机已安装本 Skill**——未安装时从 kit 的 git 仓库自举取得模板与官方脚本（见「SOP 版本升级」章节的「Skill 未安装时的自举路径」）。
+- **发布预案（可选能力分支）**：用户说 **「建立发布流程」「生成发布预案」** 时，生成 `ai-context/release.md`（发布前检查清单 + 回滚预案）。**初始化不问、不生成、不检查**——发布/回滚默认由项目已有线上流水线（Jenkins 等）承接，SOP **不接管发布动作**；没有本文件的项目不产生任何告警。
 
 ---
 
@@ -29,7 +30,7 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 | 状态管理 | `package.json` 搜索 redux/pinia/zustand/mobx/recoil/jotai；记录库名 + 版本 |
 | 样式方案 | 搜索 scss/less/tailwind/styled-components/css-modules |
 | **设计 Token 层** ★ | 搜索 CSS 变量（`--color-` / `--spacing-` / `--text-`）、`tailwind.config.*` 的 `theme.extend`、`@theme`（v4）、`theme.ts`/`tokens.ts`；记录：token 定义在哪个文件、是否已映射为工具类（Tailwind theme / CSS 变量）、深色模式如何切换。**无 token 层也要记录**（后续要建） |
-| **本 kit 溯源** ★ | 读本 Skill 目录下的 `kit-source.json`（由 `install.sh` 安装时写入）→ 取 `version` / `commit` / `repo`；用于填 AGENTS.md 的 `{{KIT_VERSION}}` / `{{KIT_COMMIT}}` / `{{KIT_REPO}}`。**读不到就填 `unknown`，绝不编造 sha** |
+| **本 kit 溯源** ★ | 读本 Skill 目录下的 `kit-source.json`（由 `install.sh` 安装时写入）→ 取 `version` / `commit` / `repo`；用于填 AGENTS.md 的 `{{KIT_REPO}}` / `{{KIT_COMMIT}}`（**AGENTS.md 模板里没有 `{{KIT_VERSION}}`——SOP 版本号在模板里是写死的 `SOP-VERSION`，不要自行新增该占位符**），以及 `ai-context/sop-upgrade.md` 的 `{{KIT_VERSION}}` / `{{KIT_REPO}}` / `{{KIT_BRANCH}}` / `{{KIT_COMMIT}}`。**读不到就填 `unknown`，绝不编造 sha** |
 | **硬编码色值现状** ★ | 在源码中统计 `-[#hex]` / `-[rgb()]` 形态的出现与重复情况（同一色值 ≥2 次 = 该建 token 的信号）。**样式文件必须单独统计**：`.less`/`.css`/`.scss` 里的裸 `color: #fff;` 形态与 Tailwind 任意值不同，是最常见的色值漂移来源（实测某项目样式层 35 处、代码层 0 处）。同时确认 token 真源文件在哪（应整体豁免） |
 | **层级结构** ★ | 扫描顶层目录（pages/components/hooks/services/utils/types/store 等），推断出「展示层 / 业务层 / 数据层 / 共享层」，据此填 project-map 的归属决策表与允许导入关系 |
 | **现有强制层** ★ | 检查是否已有 ESLint 边界规则（`no-restricted-imports`）、dependency-cruiser 配置、stylelint 硬色值规则；记录存在性（决定新配置是「补充」还是「新建」） |
@@ -103,7 +104,9 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
     - 询问：**「是否接入机器强制层？」** 默认建议开启，生成 `ai-context/configs/` 下的配置模板。
     - **必须强调接入顺序**（见 `configs/README.md`）：先定归属决策表 → 再翻译成规则 → **先 warn 跑存量基线** → 最后转 error。
     - 若项目**已有** ESLint / dependency-cruiser / stylelint 配置 → 增量合并规则，不覆盖既有配置。
+    - **CI 流水线**：同时询问「项目是否已有 CI（lint/test/build 阻断）？」——没有则建议生成 `.github/workflows/ci.yml`（从 `configs/ci-pipeline.yml.template` 取骨架，命令名替换为 package.json scripts 的真实命令），把 sop-check --strict 与依赖审计一并接入；已有 CI 则只提示补 `node scripts/sop-check.mjs --strict` 步骤，不重复建流水线。
     - 用户选择不接入 → 在 AGENTS.md「本项目对 SOP 的裁剪」写明「不接入机器强制层」，避免每次升级都重复询问。
+17. **回归红线（可选，默认生成配置但阈值留空）**：向用户说明——`sop.config.json` 会带 `regressionGuards` 配置节（bundleSizeKb / coveragePct / tscErrors / lintWarnings，阈值默认 null 只记趋势）。初始化采质量基线后，把实测数值填入阈值（如 bundle 基线 260KB、覆盖率下限 60%），此后发版用 `node scripts/sop-check.mjs --metric bundleSizeKb=262 --note "..."` 一条命令比对，超线即失败（CI 可阻断）。用户不要 → 删除该配置节。
 
 ---
 
@@ -123,11 +126,13 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 │   ├── design-tokens.md               # 从 templates/ai-context/design-tokens.md.template（前端项目；token 清单 + 硬编码值三分类判定）
 │   ├── sop-upgrade.md                  # 从 templates/ai-context/sop-upgrade.md.template（★ SOP 升级唯一流程；含未装 Skill 时的 clone 自举路径）
 │   ├── quality-baseline.md            # 从 templates/ai-context/quality-baseline.md.template（初始化时采一次基线）
+│   ├── release.md                     # 【可选，触发生成】从 templates/ai-context/release.md.template（发布前检查 + 回滚预案；默认不生成）
 │   ├── configs/                       # 【可选，阶段 1 第 16 问】从 templates/configs/（机器强制层配置模板）
 │   │   ├── README.md
 │   │   ├── eslint-boundaries.json
 │   │   ├── dependency-cruiser.json
-│   │   └── stylelint.json
+│   │   ├── stylelint.json
+│   │   └── ci-pipeline.yml            # CI 流水线骨架（复制到 .github/workflows/ci.yml 并填真实命令）
 │   └── rules/
 │       ├── frontend.md                # 从 templates/ai-context/rules/frontend.md.template
 │       ├── platform.md                # 从 templates/ai-context/rules/platform.md.template
@@ -156,16 +161,23 @@ description: 可插拔的前端项目 AI 协作脚手架初始化。放入任意
 > 若本 Skill 目录下找不到该文件，说明安装不完整——应提示用户重跑 `scripts/install.sh`，而不是自己写一个。
 
 ### 生成要求
-- **AGENTS.md**：**保持精简**——生成后目标 < 6,000 字符（软基线，`sop-check` 按此告警；> 12,000 触发硬红线 FAIL）。只放分级加载矩阵、读取纪律、文件索引、铁律与裁剪声明，细节一律放 rules。**注意**：`sop-check` 会额外检查「与 `rules/` 的段落重复率」和「单章占比」——若告警，说明内容该下沉到 rules/，而不是简单压缩字数（真实项目的 AGENTS.md 因文件索引、仓库地图等**项目特有信息**而超出软基线是正常的，此时应引导用户调 `budgets.agentsMaxChars` 而非删内容）。**§一 的「三步判级法」（数改动面 → 查高风险面 → 兜底）必须完整保留**——阈值可按项目调（如把 5 文件改成 3 文件），但不能删步骤或退回「只看信号描述」，否则 agent 无法稳定判级。填充「本项目对 SOP 的裁剪」→ `{{SOP_CUSTOMIZATIONS}}`（默认「暂无」；用户在阶段 1 第 13 问选择不生成 demo/ 时，写明「不生成 demo/（实践沉淀走 rules 已知陷阱）」；有其他裁剪逐条列出）。**文件索引表只保留本项目实际生成的框架文件**（React 项目删掉 vue/generic 行，反之同理）。**必须填入 kit 溯源信息**：`{{KIT_REPO}}` = kit 仓库地址（默认 `https://github.com/caidix/fe-sop-kit`）；`{{KIT_COMMIT}}` = 本次使用的 kit commit（读**本 Skill 目录下的 `kit-source.json`** 的 `commit` 字段，由 `install.sh` 安装时写入；读不到就填 `unknown`，**绝不编造 sha**）。这两个值落在 AGENTS.md 顶部第 2、3 行，是 `sop-check` 判断「远端是否已有新版本」的唯一依据。
+- **占位符清点（总则，务必执行）★**：生成后**逐个模板清点所有 `{{...}}`**，一个都不能留——`sop-check` 的残留检测正则只认「大写字母/数字/下划线」组成的占位符名，**含斜杠的复合写法检不出来**（AI 照抄就会静默漏填），所以务必逐个写全。**没有内容时也要写成明确结论**（如「本项目无 i18n 需求」「暂无已知陷阱」），不要留空、不要写「待补充」。本文件下列各条给出各模板的填写方法；**未点名的占位符一律按「填项目真实代码里读到的事实」处理**（内容型占位符如目录表、命令速查、示例代码）。
+- **AGENTS.md**：**保持精简**——生成后目标 < 6,000 字符（软基线，`sop-check` 按此告警；> 12,000 触发硬红线 FAIL）。只放分级加载矩阵、读取纪律、文件索引、铁律与裁剪声明，细节一律放 rules。**注意**：`sop-check` 会额外检查「与 `rules/` 的段落重复率」和「单章占比」——若告警，说明内容该下沉到 rules/，而不是简单压缩字数（真实项目的 AGENTS.md 因文件索引、仓库地图等**项目特有信息**而超出软基线是正常的，此时应引导用户调 `budgets.agentsMaxChars` 而非删内容）。**§一 的「三步判级法」（数改动面 → 查高风险面 → 兜底）必须完整保留**——阈值可按项目调（如把 5 文件改成 3 文件），但不能删步骤或退回「只看信号描述」，否则 agent 无法稳定判级。填充「本项目对 SOP 的裁剪」→ `{{SOP_CUSTOMIZATIONS}}`（默认「暂无」；用户在阶段 1 第 13 问选择不生成 demo/ 时，写明「不生成 demo/（实践沉淀走 rules 已知陷阱）」；有其他裁剪逐条列出）。**文件索引表只保留本项目实际生成的框架文件**（React 项目删掉 vue/generic 行，反之同理）。**必须填入 kit 溯源信息**：`{{KIT_REPO}}` = kit 仓库地址（默认 `https://github.com/caidix/fe-sop-kit`）；`{{KIT_COMMIT}}` = 本次使用的 kit commit（读**本 Skill 目录下的 `kit-source.json`** 的 `commit` 字段，由 `install.sh` 安装时写入；读不到就填 `unknown`，**绝不编造 sha**）。这两个值落在 AGENTS.md 顶部第 2、3 行，是 `sop-check` 判断「远端是否已有新版本」的唯一依据。**AGENTS.md 没有 `{{KIT_VERSION}}` 占位符**——SOP 版本号是模板里写死的 `SOP-VERSION: 4.5`，不要自行新增该占位符。
 - **project-map.md**：精确标注路由注册点（手写 / file-based / 插件注入），附构建命令速查。**填充「归属决策表」**（`{{PAGE_DIR}}` / `{{SHARED_COMPONENT_DIR}}` / `{{UI_PRIMITIVE_DIR}}` / `{{FEATURE_DIR}}` / `{{SERVICE_DIR}}` / `{{STATE_DIR}}` / `{{TYPE_DIR}}` / `{{UTILS_DIR}}` / `{{CONST_DIR}}` / `{{STYLE_DIR}}`）——每行填**项目真实目录名**，「不要放哪」列写具体错误位置；**填充「允许导入关系」** `{{LAYER_ROWS}}`（将被翻译成 ESLint / dependency-cruiser 规则）；**填充「项目地雷」** `{{PROJECT_LANDMINES}}`（现象 | 根因 | 正确做法）。**收录标准：只写 agent 无法从代码直接读出的信息**——目录清单、技术栈、模块名不要写，读一遍代码就知道的东西每次会话都要付费且会稀释真正的约定。
 - **design-tokens.md**（前端项目，阶段 1 第 15 问）：**填充「Token 真源位置」** `{{TOKEN_SOURCE}}`（文件路径 + 深色模式切换方式）；**填充「当前 Token 清单」** `{{TOKEN_ROWS}}`（**只列真实存在的 token，不编造**；无 token 层则填「待建立」并提示用户）；**填充「工具类映射覆盖度」** `{{MAPPING_ROWS}}`；**填充「硬编码值三分类」**的 A 类形态清单与 `{{LITERAL_ROWS}}` 提升信号表；**填充「已知例外」** `{{TOKEN_EXCEPTIONS}}`（每条写明「为什么必须例外」——没有原因的例外会被后续当漏洞删掉）。命名体系一节按项目实际 token 族填写，**优先语义命名**（`action-primary` 用途 > `blue-500` 外观）。
 - **sop-upgrade.md**（**必须生成，不可选**）：从模板生成，填入 `{{KIT_REPO}}` / `{{KIT_BRANCH}}` / `{{KIT_VERSION}}` / `{{KIT_COMMIT}}`（取值来源同 AGENTS.md 的 kit 溯源信息）。**这是「未在本机安装 Skill 也能升级 SOP」的唯一流程依据**——缺了它，该项目的升级行为完全失控：AI 既不知道去哪里取官方模板与脚本，也就没有任何东西约束它，转头就会自行手写一份替代实现（真实事故：手写版检查脚本的 ignore 规则与扩展名表全坏，却看起来「有门禁」）。
 - **design.md**：若扫描到特殊机制（插件注入、全局单例、微前端等），必须用独立章节详解。
-- **quality-baseline.md**：按阶段 0 扫描到的命令填充 `{{TYPECHECK_COMMAND}}` / `{{BUILD_COMMAND}}` / `{{TEST_COVERAGE_COMMAND}}` / `{{LINT_COMMAND}}`；**实际跑一次**把数值填入基线表（不要编造，跑不出填「未采集」并注明原因）；`{{REGRESSION_GUARD_1/2}}` 定义「较基线劣化多少即拦截」，至少给一条具体阈值（无则填「暂不设红线」）。
-- **sop.config.json**（若阶段 1 第 14 问选择生成）：按项目实情填 `srcDirs` / `codeExtensions`（默认 `src` + 主流前端扩展名，后端项目改相应源码目录与扩展名）；**必须填 `styleExtensions`**（样式文件扩展名，默认 `.less/.css/.scss/.sass/.styl`）——否则样式层的硬编码色值检查完全扫不到（代码熵检查对样式文件不适用，但色值检查适用）。`colorAllowPatterns` 必须登记 **token 真源文件**（如 `src/styles/tokens.css`），否则真源里的定义会被误报。其余阈值取模板默认。若用户选择不生成，跳过此文件。
+- **quality-baseline.md**：按阶段 0 扫描到的命令填充 `{{TYPECHECK_COMMAND}}` / `{{BUILD_COMMAND}}` / `{{TEST_COVERAGE_COMMAND}}` / `{{LINT_COMMAND}}`；**实际跑一次**把数值填入基线表（不要编造，跑不出填「未采集」并注明原因）；同时把可机器比对的指标（bundle 体积 / 覆盖率 / tsc / lint）填入 `sop.config.json` 的 `regressionGuards` 阈值（阶段 1 第 17 问），机器红线优先于文档红线；`{{REGRESSION_GUARD_1}}` 与 `{{REGRESSION_GUARD_2}}` 只放机器层覆盖不到的指标（无则分别填「暂不设红线」）。**注意：占位符必须逐个写全，不能用含斜杠的复合写法**——`sop-check` 的残留检测正则只认纯标识符形态，复合写法检不出来，会静默漏填。
+- **CI 流水线**（阶段 1 第 16 问确认需要时）：从 `templates/configs/ci-pipeline.yml.template` 复制骨架到 `.github/workflows/ci.yml`（GitLab 翻译为 `.gitlab-ci.yml`），把 lint / typecheck / test:coverage / build 四个命令名替换为 package.json scripts 里的**真实命令**；项目没有对应 script 时如实标注并保留步骤注释，**不要编造命令**。`ai-context/configs/` 里保留模板原件供后续参考。项目已有 CI → 不新建，只在变更报告中建议补 `node scripts/sop-check.mjs --strict` 步骤。
+- **sop.config.json**（若阶段 1 第 14 问选择生成）：按项目实情填 `srcDirs` / `codeExtensions`（默认 `src` + 主流前端扩展名，后端项目改相应源码目录与扩展名）；**必须填 `styleExtensions`**（样式文件扩展名，默认 `.less/.css/.scss/.sass/.styl`）——否则样式层的硬编码色值检查完全扫不到（代码熵检查对样式文件不适用，但色值检查适用）。`colorAllowPatterns` 必须登记 **token 真源文件**（如 `src/styles/tokens.css`），否则真源里的定义会被误报。`regressionGuards` 保留模板默认（阈值 null）；**采完质量基线后把实测值填入阈值**（见第 17 问）。其余阈值取模板默认。若用户选择不生成，跳过此文件。
 - **rules/*.md（通用）**：保留顶部「职责 + 按节读」提示块（≤2 行，**不要展开成静态目录**——目录用 `grep -n "^## "` 动态获取，静态目录会漂移且白占字符）；**删除与本项目无关的章节**（另一框架的适配说明、未安装 Skill 的详细用法），使 `ai-context/rules/` 合计 < 40,000 字符、单文件 < 10,000 字符——`sop-check` 会按此预算告警。注意 React 项目按模板生成后约 34,000 字符（`skill-routing.md` 9,600 最大），留给「已知陷阱」的余量约 6,000 字符，所以**删无关章节要真删**，不能只留标题。裁剪决定写入 AGENTS.md「本项目对 SOP 的裁剪」，升级时保留。
-- **rules/frontend.md**：从真实代码提取风格（导出方式、命名规范、hooks 模式，标注风格来源）。**填充「非功能需求 (NFR)」节** → `{{PERF_BUDGET}}` / `{{SECURITY_BASELINE}}` / `{{ACCESSIBILITY_RULES}}` / `{{COMPAT_MATRIX}}` / `{{I18N_RULES}}`（从构建配置/用户口述提取；未设预算填「未设预算」，不留空）。**填充「设计决策卡」四问** → `{{STATE_PLACEMENT}}` / `{{COMPONENT_SPLIT}}` / `{{EFFECT_BOUNDARY}}` / `{{RACE_HANDLING}}`（从真实代码提取约定；项目尚无先例的按推荐默认填并标注「建议」，落地后回填为项目约定）。
-- **rules/skill-routing.md**：根据扫描到的 UI Skill 可用性，填充降级策略中的安装状态标记。
+- **rules/frontend.md**：从真实代码提取风格（导出方式、命名规范、hooks 模式，标注风格来源）。**填充「非功能需求 (NFR)」节** → `{{PERF_BUDGET}}` / `{{SECURITY_BASELINE}}` / `{{ACCESSIBILITY_RULES}}` / `{{COMPAT_MATRIX}}` / `{{I18N_RULES}}`（从构建配置/用户口述提取；未设预算填「未设预算」，不留空）。**填充「设计决策卡」四问** → `{{STATE_PLACEMENT}}` / `{{COMPONENT_SPLIT}}` / `{{EFFECT_BOUNDARY}}` / `{{RACE_HANDLING}}`（从真实代码提取约定；项目尚无先例的按推荐默认填并标注「建议」，落地后回填为项目约定）。**其余风格类占位符全部按项目真实代码填写**：`{{STYLE_SOURCE}}` / `{{STYLE_SOURCE_DETAIL}}`（风格来源与依据，如「取自 src/ 下 8 个组件，主流写法」）/`{{COMPONENT_CONVENTIONS}}` / `{{TS_CONVENTIONS}}` / `{{STYLE_CONVENTIONS}}` / `{{TOOL_CLASS_MAPPING}}` / `{{STATE_CONVENTIONS}}` / `{{IMPORT_ORDER}}` / `{{FILE_NAMING}}` 与 `{{FILE_EXAMPLE}}` / `{{COMPONENT_NAMING}}` 与 `{{COMPONENT_EXAMPLE}}` / `{{HANDLER_NAMING}}` 与 `{{HANDLER_EXAMPLE}}` / `{{CONST_NAMING}}` 与 `{{CONST_EXAMPLE}}` / `{{HOOKS_PATTERNS}}` / `{{DEP_PRIORITY}}` / `{{PLATFORM_GUARDS}}`（命名规范类占位符成对出现，示例必须是项目里的真实例子，不要编造）/ `{{KNOWN_TRAPS}}`（项目已知陷阱——初始化时通常写「暂无已知陷阱（按复盘机制累积）」，**不要留空**，后续每次踩坑都追加到这里）。
+- **rules/workflow.md** ★：`{{PLATFORM_RULE}}` = 平台现实一句话（如「Taro 项目需同时验证 H5 与微信小程序两端」）；`{{STYLE_RULE}}` = 代码风格一句话（指向 frontend.md）；`{{LANDING_DECISION_TREE}}` = 落点决策表（新增文件该放哪、有无全局注入点，填项目真实目录）；`{{HIGH_RISK_CRITERIA}}` = **大/高风险判据，至少 3 条可判定的**（如「改动鉴权/支付」「变更接口协议字段」「跨 3 个以上模块」）——**它同时是 `specs/README.md` 的 `{{SPEC_TRIGGER}}` 的来源，必须填实**，空了整个「大任务走 spec」的链路就失效。
+- **rules/testing.md** ★：`{{MANDATORY_CHECKS}}` = 每次提交前必须跑通的命令，每行一条（至少含类型检查 + 构建 + lint）；`{{CHECK_1}}` / `{{CHECK_2}}` / `{{CHECK_3}}` / `{{CHECK_4}}` / `{{CHECK_5}}` = 5 条可勾选的自测项（按项目实际补，如「多端真机验证」「埋点上报核对」「空态/错误态确认」）。**这两处是「验证优于说教」的落点，填「无」等于把验证前置关掉**——至少给出命令级的必过关卡。
+- **release.md（可选，触发词「建立发布流程 / 生成发布预案」时生成）**：填 `{{PIPELINE_NAME}}`（项目实际流水线名，如 Jenkins Job 名/GitLab CI 路径；向用户询问，不编造）；`{{RELEASE_EXTRA_CHECKS}}`（项目特有的发布前检查，如「灰度名单已确认」「客服公告已发」；没有则填「无项目特有检查项」）；`{{ROLLBACK_TRIGGERS}}` / `{{ROLLBACK_STEPS}}` / `{{ROLLBACK_VERIFICATION}}` / `{{ROLLBACK_DATA_COMPAT}}`（回滚预案四项——**必须向用户询问实际回滚方式后填写，绝不编造步骤**；项目回答不上来就写「待确认」并在变更报告里标注）。生成后在 AGENTS.md 文件索引确认已有该行；**用户明确不要时，同步删除 AGENTS.md 索引中的 release.md 行**（否则索引指向不存在的文件）。**已初始化项目不自动补此文件**——只在用户触发时生成。
+- **rules/review.md**：`{{BUILD_COMMAND}}` = 项目真实构建命令（与 quality-baseline 的 `{{BUILD_COMMAND}}` 保持一致）；其余为静态清单，不用填。
+- **rules/platform.md**：`{{PLATFORM_MATRIX}}`（平台 × 产物 × 部署方式）/ `{{PLATFORM_SPECIFIC_FILES}}`（各端差异文件）/ `{{ENV_VARIABLES}}`（环境变量清单）/ `{{VERIFICATION_FLOW}}`（每端验证命令）/ `{{PLATFORM_NOTES}}`（平台特有坑）。单端项目可只保留一行并在 AGENTS.md 裁剪区块声明「单端，platform.md 已精简」。
+- **rules/skill-routing.md**：**模板本身没有占位符**（降级策略是静态表）。按阶段 0 扫描到的 Skill 安装情况，把对应行的「已安装 / 未安装」文案改成实际状态即可，**不要自行新增占位符**；全部未安装时保留静态降级文案即可。
 - **rules/planning.md**：从模板直接生成（全静态，无需扫描填充），定义 L3 复杂任务四阶段规划流程（理解→设计→拆解→自审）。所有项目生成相同内容。
 - **rules/react.md**（仅 React 项目）：填充第 0 节「项目 React 代码风格」→ `{{REACT_COMPONENT_STYLE}}` / `{{REACT_FILE_ORGANIZATION}}` / `{{REACT_EXPORT_IMPORT}}` / `{{REACT_TYPE_PREFERENCES}}`（从阶段 0 扫描的真实代码中提取，标注来源文件；若样本不足且用户选了"不保留风格"，填入 React 官方推荐写法并标注）；填充 `react` 版本号 → `{{REACT_VERSION_RULES}}`；填充状态管理深层约定 → `{{STATE_MANAGEMENT_DEEP}}`（不仅填命名约定，还要从实际代码中提取 store 文件组织方式和 selector 写法）；填充用户额外约束 → `{{REACT_USER_CONSTRAINTS}}`。
 - **rules/vue.md**（仅 Vue 项目）：填充第 0 节「项目 Vue 代码风格」→ `{{VUE_COMPONENT_STYLE}}` / `{{VUE_FILE_ORGANIZATION}}` / `{{VUE_EXPORT_IMPORT}}` / `{{VUE_TYPE_PREFERENCES}}` / `{{VUE_TEMPLATE_STYLE}}`（从阶段 0 扫描的真实代码中提取，标注来源文件；样本不足时同理处理）；填充 `vue` 版本号 → `{{VUE_VERSION_RULES}}`；填充 Store 约定 → `{{VUE_STORE_CONVENTIONS}}`；填充用户额外约束 → `{{VUE_USER_CONSTRAINTS}}`。
@@ -232,6 +244,8 @@ SOP 初始化后，日常任务按以下阶段流转。AI 在每阶段自动读�
   │     ★ 坑变成可勾选检查项（review.md / sop-check），不只写散文
   │
   └──→ 下一任务
+        └─（可触发分支）用户意图为发布/回滚 → ai-context/release.md 如已生成则按预案核对；
+           未生成则提示一次「建立发布流程」，不需要则删索引行并写入裁剪声明
 ```
 
 AI 在对应阶段的行为：
@@ -350,6 +364,8 @@ AI 在对应阶段的行为：
 | 模板新增的章节 / 文件（如 v2→v3 新增 `skill-routing.md`、`planning.md`；v3.3→v3.4 新增 `scripts/sop-check.mjs`；v3.9 新增 `specs/INDEX.md`；**v4.0 新增 `design-tokens.md` + `configs/`**） | **新增**，按模板骨架生成并填充 |
 | **v4.0 新增 `ai-context/design-tokens.md`** | **新增并填充**：扫描项目实际 token 与硬编码色值，生成清单。**不覆盖已有项目特定内容**。若项目无 token 层 → 生成一份标注「待建立」的初版清单，并告知用户需先建最小 token 层；若用户明确不要 → 在 AGENTS.md 裁剪区块声明「不生成 design-tokens」 |
 | **v4.0 新增 `ai-context/configs/`**（机器强制层） | **新增为配置模板，不直接接入**：生成后询问用户是否接入 ESLint / dependency-cruiser / stylelint。接入时**增量合并**进项目既有配置，不覆盖；**必须按 `configs/README.md` 的顺序**（先定归属表 → 翻译成规则 → 先 warn 跑存量 → 最后转 error）。用户不接入 → 在裁剪区块声明 |
+| **v4.5 新增 `configs/ci-pipeline.yml.template` 与 `regressionGuards`** | CI 模板按需生成（项目已有 CI 则不新建，只建议补 sop-check --strict 步骤）；`sop.config.json` 增量合并 `regressionGuards` 节（已有则保留项目阈值，不回填 null）；`ai-context/quality-metrics.json` 是脚本写入的采集快照，**保留不动** |
+| **v4.5 新增 `ai-context/release.md`（发布/回滚可选分支）** | **初始化不生成、升级不自动补**——只在用户说「建立发布流程 / 生成发布预案」时生成并填充。已有 release.md 的项目升级时**保留**（其中的发布记录与回滚预案是项目资产）。CI 模板定位是质量门禁，**不含部署/发布**——发布由项目线上流水线承接 |
 | **v4.0 `project-map.md` 新增「归属决策表 / 允许导入关系 / 项目地雷」** | **新增这三节**，用新扫描结果填充。已有内容（如路由机制）保留。项目地雷节若已有内容，**追加不覆盖** |
 | `specs/README.md` 的生命周期章节（v3.9：活跃 / 归档 / 废弃 + 阈值） | **用新版覆盖该章节**（无项目特定内容）；若项目已有自己的归档约定，保留项目版并在 AGENTS.md「裁剪」声明 |
 | `specs/` 下已有大量历史 spec | **不做自动归档**（会改动 git 历史）；只提示用户：「有 N 个已交付 spec 可归档，要现在处理吗？」得到确认后按 README 的规则执行 |

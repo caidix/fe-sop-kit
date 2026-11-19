@@ -1,5 +1,5 @@
 @echo off
-REM yh-sop-fe-kit Windows launcher — runs install.sh with Git Bash.
+REM fe-sop-kit Windows launcher — runs install.sh with Git Bash.
 REM Usage:  scripts\install.bat  [args]
 REM   args are forwarded to install.sh, e.g.  install.bat --all-react
 setlocal enabledelayedexpansion

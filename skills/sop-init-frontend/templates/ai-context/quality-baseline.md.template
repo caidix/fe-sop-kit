@@ -23,8 +23,20 @@
 | Lint 警告数 | {{LINT_WARNINGS}} | {{BASELINE_DATE}} | |
 
 ## 回归红线
-<!-- AI-INSERT: 定义"变差到什么程度必须拦截"，写入 review.md 可执行检查或 CI。
-  示例：主 bundle gzip 较基线 +10% 即阻断；覆盖率不得低于基线 -5%。未设则逐条填「暂不设红线」。 -->
+
+红线有两层，**机器层优先**：
+
+**① 机器红线（推荐）**：阈值写在 `sop.config.json` 的 `regressionGuards`，发版/里程碑时用一条命令采集并比对，违规即退出码 1（CI 可阻断）：
+
+```bash
+node scripts/sop-check.mjs --metric bundleSizeKb=262 --metric coveragePct=58 --note "v1.2 发版"
+```
+
+- `bundleSizeKb`：`{ "baseline": <初始值>, "maxDeltaPct": 10 }` → 上界 = 基线 ×(1+10%)
+- `coveragePct`：`{ "min": 60 }` → 下界；`tscErrors` / `lintWarnings`：`{ "max": 0 }` → 上界
+- 未设阈值（null）的指标只记录趋势，不比对。快照与历史存 `ai-context/quality-metrics.json`（最近 20 条，随仓库提交，团队共享趋势）。
+
+**② 文档红线（人工对照）**：<!-- AI-INSERT: 机器层覆盖不到的指标在此声明，未设则逐条填「暂不设红线」 -->
 - {{REGRESSION_GUARD_1}}
 - {{REGRESSION_GUARD_2}}
 
